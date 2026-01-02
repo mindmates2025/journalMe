@@ -1,4 +1,5 @@
-import { db } from "./firebase";
+import { db } from "../firebase-config";
+// Added New Push
 import { 
   collection, 
   addDoc, 

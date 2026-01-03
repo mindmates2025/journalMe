@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  addEntry, getEntries, deleteEntry, 
-  addTask, getTasks 
+  addEntry, deleteEntry, 
+  addTask, subscribeToEntries, subscribeToTasks 
 } from './journalService';
 import { PenLine, BookOpen, CheckCircle2, Wallet, Trash2, Plus, Search } from 'lucide-react';
 import './App.css';
+import { CheckCheck, CloudOff } from 'lucide-react'; // Add these icons
 
 function App() {
   const [activeTab, setActiveTab] = useState('history');
@@ -18,19 +19,29 @@ function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDate, setFilterDate] = useState("");
 
+  // Real-time Subscriptions (Step 3: Implementation)
   useEffect(() => {
-    refreshAllData();
+    setLoading(true);
+
+    // Subscribe to Journal Entries - Loads from Cache first
+    const unsubscribeEntries = subscribeToEntries((data) => {
+      setEntries(data);
+      setLoading(false); 
+    });
+
+    // Subscribe to Tasks - Loads from Cache first
+    const unsubscribeTasks = subscribeToTasks((data) => {
+      setTasks(data);
+    });
+
+    // Clean up listeners when the component unmounts
+    return () => {
+      unsubscribeEntries();
+      unsubscribeTasks();
+    };
   }, []);
 
-  const refreshAllData = async () => {
-    setLoading(true);
-    const [entryData, taskData] = await Promise.all([getEntries(), getTasks()]);
-    setEntries(entryData);
-    setTasks(taskData);
-    setLoading(false);
-  };
-
-  // Logic to filter entries based on Search and Calendar
+  // Filter logic remains client-side to keep it fast and free
   const filteredEntries = entries.filter(entry => {
     const matchesSearch = entry.content.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -43,24 +54,39 @@ function App() {
     return matchesSearch && matchesDate;
   });
 
+  // Helper function for "Today" / "Yesterday" / Date
+  const formatEntryDate = (date) => {
+    if (!date) return "Just now";
+    
+    const d = date.toDate ? date.toDate() : new Date(date);
+    const now = new Date();
+    
+    const diffInDays = Math.floor((now - d) / (1000 * 60 * 60 * 24));
+    
+    if (diffInDays === 0 && d.getDate() === now.getDate()) return "Today";
+    if (diffInDays === 1 || (diffInDays === 0 && d.getDate() !== now.getDate())) return "Yesterday";
+    
+    return d.toLocaleDateString('en-IN', { 
+      day: 'numeric', month: 'short', year: 'numeric' 
+    });
+  };
+
   const handleSaveEntry = async () => {
     if (!input.trim()) return;
-    await addEntry(input);
+    await addEntry(input); // Listener automatically updates the UI
     setInput("");
-    refreshAllData();
+    setActiveTab('history'); 
   };
 
   const handleAddTask = async () => {
     if (!taskInput.trim()) return;
-    await addTask(taskInput);
+    await addTask(taskInput); // Listener automatically updates the UI
     setTaskInput("");
-    refreshAllData();
   };
 
   const handleDeleteEntry = async (id) => {
     if (window.confirm("Delete this reflection?")) {
-      await deleteEntry(id);
-      refreshAllData();
+      await deleteEntry(id); // Listener automatically handles removal
     }
   };
 
@@ -68,7 +94,9 @@ function App() {
     <div className="app-container">
       <header className="main-header">
         <h1>Journal<span>Me</span></h1>
-        <div className="date-pill">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</div>
+        <div className="date-pill">
+          {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+        </div>
       </header>
 
       <main>
@@ -77,8 +105,14 @@ function App() {
           <section className="screen fade-in">
             <div className="card">
               <label className="input-label">Practice moderation today...</label>
-              <textarea value={input} onChange={(e) => setInput(e.target.value)} placeholder="What's on your mind?" />
-              <button onClick={handleSaveEntry} className="primary-btn"><PenLine size={20} /> Save Reflection</button>
+              <textarea 
+                value={input} 
+                onChange={(e) => setInput(e.target.value)} 
+                placeholder="What's on your mind?" 
+              />
+              <button onClick={handleSaveEntry} className="primary-btn">
+                <PenLine size={20} /> Save Reflection
+              </button>
             </div>
             <div className="quote-card">
               <p>"Moderation is the silken string running through the pearl-chain of all virtues."</p>
@@ -138,17 +172,29 @@ function App() {
                     <div className="card-divider"></div>
                     <div className="entry-footer">
                       <span className="entry-date">
-                        {entry.createdAt?.toDate ? 
-                          entry.createdAt.toDate().toLocaleDateString('en-IN', { 
-                            day: 'numeric', month: 'short', year: 'numeric' 
-                          }) : '3 Jan 2026'}
+                        {formatEntryDate(entry.createdAt)}
                       </span>
-                      <button 
-                        onClick={() => handleDeleteEntry(entry.id)} 
-                        className="delete-text-btn"
-                      >
-                        Delete
-                      </button>
+
+                    <div className="sync-indicator">
+                    {entry.metadata?.hasPendingWrites ? (
+                      <div className="sync-tag pending" title="Saving locally...">
+                        <CloudOff size={14} />
+                        <span>Pending</span>
+                      </div>
+                    ) : (
+                      <div className="sync-tag synced" title="Synced to cloud">
+                        <CheckCheck size={14} />
+                        <span>Synced</span>
+                      </div>
+                    )}
+                  </div>
+      
+                    <button 
+                      onClick={() => handleDeleteEntry(entry.id)} 
+                      className="delete-text-btn"
+                    >
+                      Delete
+                    </button>                    
                     </div>
                   </div>
                 ))

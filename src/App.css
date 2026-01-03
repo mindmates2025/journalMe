@@ -309,12 +309,28 @@ textarea:focus {
 
 .date-filter-input {
   width: 100%;
-  padding: 11px;
+  padding: 12px;
   border-radius: 14px;
   border: 1px solid #e2e8f0;
+  
+  /* --- FIX FOR IPHONE BLACK BOX --- */
+  background-color: #ffffff !important; /* Forces white background */
+  color: #1e293b !important;            /* Forces dark text */
+  -webkit-appearance: none;            /* Removes iOS default styling */
+  appearance: none;                    /* Removes standard browser styling */
+  
   font-family: inherit;
   font-size: 0.85rem;
   box-sizing: border-box;
+  display: block;
+}
+
+/* Ensure the calendar icon inside is visible but subtle on iPhone */
+.date-filter-input::-webkit-calendar-picker-indicator {
+  background-color: transparent;
+  cursor: pointer;
+  /* This ensures the icon isn't hidden or inverted oddly on iOS */
+  filter: invert(0); 
 }
 
 .clear-filter-btn {
@@ -382,4 +398,42 @@ textarea:focus {
   text-align: left;
   margin-bottom: 16px;
   word-wrap: break-word; /* Prevents overflow from single long strings */
+}
+
+
+.entry-meta-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sync-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.sync-tag.synced {
+  color: #10b981; /* Emerald Green */
+}
+
+.sync-tag.pending {
+  color: #94a3b8; /* Slate Gray */
+  animation: pulseSync 2s infinite;
+}
+
+@keyframes pulseSync {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
+.entry-date {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
 }

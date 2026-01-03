@@ -1,156 +1,385 @@
+/* App.css - Restored Clean Theme */
 :root {
-  --primary: #6366f1;
-  --bg: #f8fafc;
-  --card: #ffffff;
-  --text: #1e293b;
-  --text-light: #64748b;
+  /* A nicer, slightly softer purple matching your screenshots */
+  --primary: #8b5cf6; 
+  --primary-dark: #7c3aed;
+  
+  /* Clean, light background colors */
+  --bg-app: #f8fafc;   
+  --bg-card: #ffffff;  
+  
+  /* Typography colors */
+  --text-main: #1e293b; /* Dark slate for readability */
+  --text-muted: #64748b; /* Softer gray for labels/dates */
+  
+  --border: #e2e8f0;
   --danger: #ef4444;
-  --success: #22c55e;
 }
 
 body {
   margin: 0;
-  background-color: var(--bg);
-  font-family: 'Inter', sans-serif;
-  color: var(--text);
-  padding-bottom: 80px; /* Space for bottom nav */
+  /* Using system fonts for a native, clean feel */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  padding-bottom: 90px; /* Make space for the bottom nav */
 }
 
 .app-container {
-  max-width: 500px;
+  max-width: 480px; /* Keeps things looking good on mobile */
   margin: 0 auto;
-  padding: 20px;
+  padding: 24px;
 }
 
+/* === Header === */
 .main-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  margin-bottom: 32px;
 }
 
-.main-header h1 { font-size: 1.5rem; font-weight: 800; }
-.main-header h1 span { color: var(--primary); }
+.main-header h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.025em;
+}
+
+.main-header h1 span {
+  color: var(--primary);
+}
 
 .date-pill {
-  background: white;
-  padding: 5px 12px;
+  background: var(--bg-card);
+  padding: 8px 16px;
   border-radius: 20px;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 600;
-  border: 1px solid #e2e8f0;
+  color: var(--text-main);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
-/* Screen Layouts */
-.screen {
-  animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
+/* === Standard Card & Input Styles (The Fix) === */
 .card {
-  background: var(--card);
-  padding: 20px;
+  background: var(--bg-card); /* Explicitly white */
+  padding: 24px;
   border-radius: 24px;
-  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);
-  margin-bottom: 20px;
+  /* A soft, modern shadow */
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+  margin-bottom: 24px;
+  border: 1px solid var(--border);
+}
+
+.input-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--text-main); /* Ensures label is dark */
 }
 
 textarea {
   width: 100%;
-  height: 200px;
-  border: none;
-  background: #f1f5f9;
+  height: 180px;
+  padding: 16px;
   border-radius: 16px;
-  padding: 15px;
-  margin: 15px 0;
+  border: 1px solid var(--border);
+  background: #f1f5f9; /* A very light gray, NOT black */
+  color: var(--text-main); /* Dark text for typing */
   font-family: inherit;
+  font-size: 1rem;
   resize: none;
+  box-sizing: border-box;
+  margin-bottom: 20px;
+  transition: all 0.2s;
+}
+
+textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* When you click to type, it turns white with a purple glow */
+textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: var(--bg-card);
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
 }
 
 .primary-btn {
   width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: 16px;
   background: var(--primary);
   color: white;
-  border: none;
-  padding: 15px;
-  border-radius: 16px;
+  font-size: 1rem;
   font-weight: 700;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
+  transition: background 0.2s;
 }
 
-/* Bank Section Styles */
-.bank-hero {
-  background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
-  color: white;
-  padding: 30px;
-  border-radius: 24px;
-  margin-bottom: 25px;
+.primary-btn:hover {
+  background: var(--primary-dark);
+}
+
+/* === Quote Style === */
+.quote-card {
+  padding: 20px;
   text-align: center;
 }
 
-.balance-amt { font-size: 2.5rem; margin: 5px 0; }
-
-.debt-card {
-  background: white;
-  padding: 15px;
-  border-radius: 16px;
-  margin-bottom: 12px;
-  border: 1px solid #e2e8f0;
+.quote-card p {
+  font-style: italic;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0;
 }
 
-.debt-info {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.progress-bar {
-  height: 6px;
-  background: #f1f5f9;
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: var(--danger);
-}
-
-/* Bottom Nav */
+/* === Bottom Navigation === */
 .bottom-nav {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.85); /* Semi-transparent white */
+  backdrop-filter: blur(12px); /* frosted glass effect */
   display: flex;
   justify-content: space-around;
-  padding: 10px 0 25px 0;
-  border-top: 1px solid #e2e8f0;
+  padding: 12px 0 30px; /* Extra padding for iOS home bar */
+  border-top: 1px solid var(--border);
 }
 
-.bottom-nav button {
+.nav-btn {
   background: none;
   border: none;
   display: flex;
   flex-direction: column;
   align-items: center;
-  color: var(--text-light);
-  gap: 4px;
+  color: var(--text-muted);
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: 0.2s;
+  transition: color 0.2s;
 }
 
-.bottom-nav button.active {
+.nav-btn.active {
   color: var(--primary);
 }
 
-.bottom-nav span { font-size: 0.7rem; font-weight: 600; }
+/* === Simple Animations === */
+.fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
+/* --- Entries Screen Enhancements --- */
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.search-box {
+  width: 100%;
+  margin-bottom: 24px;
+  display: flex; /* Helps with layout consistency */
+  box-sizing: border-box; 
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 20px; /* Matches your design's rounded aesthetics */
+  border: 1px solid var(--border);
+  background: white;
+  font-size: 0.95rem;
+  outline: none;
+  /* CRITICAL: This ensures padding is included in the 100% width */
+  box-sizing: border-box; 
+  display: block;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-input:focus {
+  border-color: var(--primary-light);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.05); /* Subtle purple glow */
+}
+
+.entry-card {
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.entry-content {
+  line-height: 1.6;
+  color: #334155;
+  margin: 0 0 16px 0;
+  font-size: 1.05rem;
+  white-space: pre-wrap; /* Keeps your line breaks */
+}
+
+/* The subtle line between text and date */
+.card-divider {
+  height: 1px;
+  background: #f1f5f9;
+  margin-bottom: 12px;
+}
+
+.entry-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.entry-date {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.delete-text-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.delete-text-btn:hover {
+  background: #fef2f2;
+}
+
+.status-msg {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 40px;
+}
+
+
+/* --- Filter Group Styles --- */
+.filter-group {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  width: 100%;
+  box-sizing: border-box; /* Fixes off-screen overflow */
+}
+
+
+.search-box {
+  flex: 2;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  color: #94a3b8;
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px 12px 12px 38px !important; /* Extra left padding for icon */
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  box-sizing: border-box;
+}
+
+.calendar-box {
+  flex: 1.2;
+  position: relative;
+}
+
+.date-filter-input {
+  width: 100%;
+  padding: 11px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  font-family: inherit;
+  font-size: 0.85rem;
+  box-sizing: border-box;
+}
+
+.clear-filter-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--bg-app);
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.text-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+/* Mobile Tweak: Stack filters on very small screens if needed */
+@media (max-width: 360px) {
+  .filter-group {
+    flex-direction: column;
+  }
+}
+
+
+/* --- Forces Entries to span the full width --- */
+.entries-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  /* CRITICAL: This forces all cards to stretch to full width */
+  align-items: stretch; 
+  box-sizing: border-box;
+}
+
+.entry-card {
+  /* This ensures the card doesn't shrink to fit small text */
+  width: 100% !important; 
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  border-radius: 24px;
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04);
+  box-sizing: border-box; /* Includes padding in width calculation */
+}
+
+.entry-content {
+  width: 100%;
+  text-align: left;
+  margin-bottom: 16px;
+  word-wrap: break-word; /* Prevents overflow from single long strings */
+}

@@ -144,6 +144,7 @@ function App() {
                 <input 
                   type="date" 
                   className="date-filter-input"
+                  
                   value={filterDate}
                   onChange={(e) => setFilterDate(e.target.value)}
                 />

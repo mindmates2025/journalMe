@@ -309,28 +309,50 @@ textarea:focus {
 
 .date-filter-input {
   width: 100%;
-  padding: 12px;
-  border-radius: 14px;
+  height: 42px;
+  padding: 0 12px 16px;
+  border-radius: 20px;
   border: 1px solid #e2e8f0;
   
-  /* --- FIX FOR IPHONE BLACK BOX --- */
-  background-color: #ffffff !important; /* Forces white background */
-  color: #1e293b !important;            /* Forces dark text */
-  -webkit-appearance: none;            /* Removes iOS default styling */
-  appearance: none;                    /* Removes standard browser styling */
+  /* Forces white background on iOS even before selection */
+  background-color: #ffffff !important; 
+  color: #1e293b !important;
   
+  /* Removes default iOS styling that causes the 'black box' or transparency */
+  -webkit-appearance: none;
+  appearance: none;
   font-family: inherit;
   font-size: 0.85rem;
   box-sizing: border-box;
   display: block;
 }
+/* Fixes the placeholder text color on iPhone before a date is picked */
+.date-filter-input:invalid,
+.date-filter-input[value=""] {
+  color: #94a3b8 !important; /* Matches your 'Search thoughts' placeholder color */
+}
 
-/* Ensure the calendar icon inside is visible but subtle on iPhone */
+/* Custom trick to force a placeholder to appear on iOS */
+.date-filter-input::before {
+  content: attr(placeholder);
+  margin-right: 0.5em;
+  color: #94a3b8;
+  display: inline-block;
+}
+
+/* Hide the placeholder once a date is selected */
+.date-filter-input:focus::before,
+.date-filter-input:not([value=""])::before {
+  display: none;
+  content: "";
+}
+
+/* Ensure the calendar icon is visible and properly colored */
 .date-filter-input::-webkit-calendar-picker-indicator {
-  background-color: transparent;
+  display: block;
   cursor: pointer;
-  /* This ensures the icon isn't hidden or inverted oddly on iOS */
-  filter: invert(0); 
+  filter: invert(40%) sepia(10%) saturate(1000%) hue-rotate(220deg);
+  opacity: 1;
 }
 
 .clear-filter-btn {

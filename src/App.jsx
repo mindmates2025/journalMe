@@ -65,28 +65,38 @@ function App() {
   // --- 1. FIXED COMMITMENTS ---
   const MONTHLY_REPAYMENT_TOTAL = 10813; 
   const REPAYMENT_DAY = 13;
+  const RENT_AMOUNT = 10000; // Standard Rent placeholder
+  const RENT_DAY = 11; // MODIFIED: Now paid on the 11th
 
-  // --- 2. LIQUIDITY MATH ENGINE (FIXED FOR DATES) ---
+  // --- 2. LIQUIDITY MATH ENGINE ---
   const now = new Date();
-  const getDaysUntil13th = () => {
+  const getDaysUntil = (targetDay) => {
     const today = now.getDate();
-    if (today <= REPAYMENT_DAY) return REPAYMENT_DAY - today + 1;
+    if (today <= targetDay) return targetDay - today + 1;
     const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    return (lastDayOfMonth - today) + REPAYMENT_DAY + 1;
+    return (lastDayOfMonth - today) + targetDay + 1;
   };
-  const daysRemainingTo13th = getDaysUntil13th();
+  
+  const daysTo11th = getDaysUntil(RENT_DAY);
+  const daysTo13th = getDaysUntil(REPAYMENT_DAY);
 
-  const deadlineDate = new Date(now.getFullYear(), now.getMonth(), REPAYMENT_DAY);
-  const safeIncome = (strategy?.expectedIncome || []).filter(inc => {
-    if (!inc.date) return false;
-    return new Date(inc.date) <= deadlineDate;
-  });
-  const totalSafePipeline = safeIncome.reduce((acc, inc) => acc + inc.amount, 0);
+  // Filter Pipeline: Only include money that arrives before the respective deadlines
+  const rentDeadlineDate = new Date(now.getFullYear(), now.getMonth(), RENT_DAY);
+  const repaymentDeadlineDate = new Date(now.getFullYear(), now.getMonth(), REPAYMENT_DAY);
 
-  const totalAvailableForDeadline = balance.total + totalSafePipeline;
-  const cashSurplusAfterDebt = totalAvailableForDeadline - MONTHLY_REPAYMENT_TOTAL;
+  const incomeBefore11th = (strategy?.expectedIncome || []).filter(inc => inc.date && new Date(inc.date) <= rentDeadlineDate);
+  const incomeBefore13th = (strategy?.expectedIncome || []).filter(inc => inc.date && new Date(inc.date) <= repaymentDeadlineDate);
 
-  const dailySurvivalBudget = cashSurplusAfterDebt > 0 ? (cashSurplusAfterDebt / daysRemainingTo13th) : 0;
+  const totalSafePipeline = incomeBefore13th.reduce((acc, inc) => acc + inc.amount, 0);
+
+  // Liquidity Check: Ensure both Rent (11th) and Repayment (13th) are covered
+  const surplus11th = balance.total + incomeBefore11th.reduce((acc, inc) => acc + inc.amount, 0) - RENT_AMOUNT;
+  const surplus13th = balance.total + totalSafePipeline - RENT_AMOUNT - MONTHLY_REPAYMENT_TOTAL;
+
+  // If we are short for EITHER deadline, survival limit is 0
+  const isLiquidityShort = surplus11th < 0 || surplus13th < 0;
+  
+  const dailySurvivalBudget = !isLiquidityShort ? (surplus13th / daysTo13th) : 0;
   const remainingSurvivalToday = Math.max(0, dailySurvivalBudget - (strategy?.dailySpent || 0));
 
   const totalDebtBalance = debts.reduce((acc, d) => acc + (d.total - (d.paid || 0)), 0);
@@ -102,31 +112,38 @@ function App() {
     const { type, data } = modalConfig;
     const { val1, val2, val3 } = modalInput;
 
+    // 1. Balance Update
     if (type === 'balance' && val1) await updateBalance(Number(val1));
+    
+    // 2. Debt Payment
     if (type === 'payment' && val1) await updateDebtPayment(data.id, (data.paid || 0) + Number(val1));
+    
+    // 3. New Debt
     if (type === 'newDebt' && val1 && val2) await addDebt({ label: val1, total: Number(val2), paid: 0 });
     
+    // 4. Log Spend (MODIFIED TO SUBTRACT FROM BALANCE)
     if (type === 'logSpend' && val1 && val2) {
+      const spendAmount = Number(val2);
+      
+      // Update Strategy (Daily List)
       await updateStrategy({ 
-        dailySpent: (strategy.dailySpent || 0) + Number(val2),
-        dailySpendsList: [...(strategy.dailySpendsList || []), { label: val1, amount: Number(val2), id: Date.now() }]
+        dailySpent: (strategy.dailySpent || 0) + spendAmount,
+        dailySpendsList: [...(strategy.dailySpendsList || []), { label: val1, amount: spendAmount, id: Date.now() }]
       });
+
+      // Update Actual Liquid Cash Balance
+      const newBalance = balance.total - spendAmount;
+      await updateBalance(newBalance);
     }
+
+    // 5. Add Income
     if (type === 'addIncome' && val1 && val2) {
-      await updateStrategy({ expectedIncome: [...(strategy.expectedIncome || []), { label: val1, amount: Number(val2), date: val3, id: Date.now() }] });
+      await updateStrategy({ 
+        expectedIncome: [...(strategy.expectedIncome || []), { label: val1, amount: Number(val2), date: val3, id: Date.now() }] 
+      });
     }
     
     setModalConfig({ show: false, type: '', data: null });
-  };
-
-  const handleDeleteSpendItem = async (itemId, amount) => {
-    const newList = strategy.dailySpendsList.filter(item => item.id !== itemId);
-    await updateStrategy({ dailySpent: strategy.dailySpent - amount, dailySpendsList: newList });
-  };
-
-  const handleDeleteIncomeItem = async (itemId) => {
-    const newList = strategy.expectedIncome.filter(item => item.id !== itemId);
-    await updateStrategy({ expectedIncome: newList });
   };
 
   const handleSaveEntry = async () => {
@@ -136,16 +153,7 @@ function App() {
     setActiveTab('history');
   };
 
-  // RESTORED FILTER LOGIC
-  const filteredEntries = entries.filter(entry => {
-    const matchesSearch = entry.content.toLowerCase().includes(searchTerm.toLowerCase());
-    let matchesDate = true;
-    if (filterDate && entry.createdAt?.toDate) {
-      const entryDate = entry.createdAt.toDate().toISOString().split('T')[0];
-      matchesDate = entryDate === filterDate;
-    }
-    return matchesSearch && matchesDate;
-  });
+  const filteredEntries = entries.filter(entry => entry.content.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="app-container">
@@ -165,7 +173,7 @@ function App() {
 
       <header className="main-header">
         <h1>Journal<span>Me</span></h1>
-        <div className="date-pill">Due in {daysRemainingTo13th}d</div>
+        <div className="date-pill">Rent in {daysTo11th}d</div>
       </header>
 
       <main>
@@ -179,10 +187,9 @@ function App() {
           </section>
         )}
 
-        {/* RESTORED HISTORY UI SECTION */}
         {activeTab === 'history' && (
           <section className="screen fade-in">
-            <div className="section-header-row"><h3 className="section-title">Recent Reflections</h3><span className="pill">{filteredEntries.length} Entries</span></div>
+            <div className="section-header-row"><h3 className="section-title">History</h3><span className="pill">{filteredEntries.length}</span></div>
             <div className="filter-group" style={{display:'flex', gap:'10px', marginBottom:'20px'}}>
               <div className="search-box" style={{flex:2, position:'relative'}}>
                 <Search size={18} style={{position:'absolute', left:'12px', top:'50%', transform:'translateY(-50%)', color:'#94a3b8'}} />
@@ -191,11 +198,11 @@ function App() {
               <div className="calendar-box" style={{flex:1}}><input type="date" className="date-filter-input" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} style={{width:'100%'}}/></div>
             </div>
             <div className="entries-list">
-              {loading ? <p className="status-msg">Gathering thoughts...</p> : filteredEntries.map(entry => (
+              {filteredEntries.map(entry => (
                 <div key={entry.id} className="card entry-card">
                   <p className="entry-content">{entry.content}</p>
-                  <div className="entry-footer" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'12px'}}>
-                    <span className="entry-date" style={{fontSize:'0.75rem', color:'#64748b'}}>{formatEntryDate(entry.createdAt)}</span>
+                  <div className="entry-footer" style={{display:'flex', justifyContent:'space-between', marginTop:'12px'}}>
+                    <span style={{fontSize:'0.75rem', color:'#64748b'}}>{formatEntryDate(entry.createdAt)}</span>
                     <button onClick={() => deleteEntry(entry.id)} className="delete-text-btn" style={{color:'#ef4444', background:'none', border:'none', fontWeight:'600'}}>Delete</button>
                   </div>
                 </div>
@@ -226,32 +233,33 @@ function App() {
             <div className="card strategy-card">
               <div className="jail-grid" style={{display:'flex', justifyContent:'space-between', background:'#f8fafc', padding:'12px', borderRadius:'12px', marginBottom:'20px', border:'1px solid #e2e8f0'}}>
                 <div className="jail-item" style={{textAlign:'center', flex:1}}>
-                  <span className="strat-label">Repayment Due</span>
-                  <p className="strat-value text-danger" style={{fontWeight:'800'}}>₹{MONTHLY_REPAYMENT_TOTAL.toLocaleString('en-IN')}</p>
-                  <small style={{fontSize:'0.6rem'}}>On 13th Jan</small>
+                  <span className="strat-label">Rent Jail (11th)</span>
+                  <p className="strat-value text-primary" style={{fontWeight:'800'}}>₹{Math.ceil(RENT_AMOUNT / daysTo11th).toLocaleString('en-IN')}</p>
+                  <small style={{fontSize:'0.6rem'}}>Daily Set Aside</small>
                 </div>
                 <div style={{width:'1px', background:'#e2e8f0'}}></div>
                 <div className="jail-item" style={{textAlign:'center', flex:1}}>
-                  <span className="strat-label">Days Left</span>
-                  <p className="strat-value text-primary" style={{fontWeight:'800'}}>{daysRemainingTo13th}</p>
-                  <small style={{fontSize:'0.6rem'}}>Until 13th</small>
+                  <span className="strat-label">Installment (13th)</span>
+                  <p className="strat-value text-danger" style={{fontWeight:'800'}}>₹{Math.ceil(MONTHLY_REPAYMENT_TOTAL / daysTo13th).toLocaleString('en-IN')}</p>
+                  <small style={{fontSize:'0.6rem'}}>Daily Set Aside</small>
                 </div>
               </div>
 
               <div className="survival-hero" style={{textAlign:'center', marginBottom:'24px'}}>
                 <span className="pill-label">Survival Limit Today</span>
-                <h1 style={{fontSize:'2.5rem', fontWeight:'900', color: cashSurplusAfterDebt > 0 ? '#10b981' : '#ef4444'}}>
+                <h1 style={{fontSize:'2.5rem', fontWeight:'900', color: !isLiquidityShort ? '#10b981' : '#ef4444'}}>
                     ₹{Math.floor(remainingSurvivalToday).toLocaleString('en-IN')}
                 </h1>
+                {isLiquidityShort && <small className="text-danger">⚠️ Cash Shortage for upcoming Deadlines</small>}
               </div>
 
               <div className="income-pipeline-section">
                 <div className="pipeline-header"><span className="pill-label">Income Pipeline (Before 13th)</span><strong className="text-success">+₹{totalSafePipeline.toLocaleString('en-IN')}</strong></div>
                 <div className="pipeline-list">
-                  {safeIncome.map((inc) => (
+                  {incomeBefore13th.map((inc) => (
                     <div key={inc.id} style={{display:'flex', justifyContent:'space-between', fontSize:'0.75rem', marginBottom:'4px'}}>
                       <div className="item-info"><Clock size={12} style={{marginRight:'4px'}}/><span>{inc.label} ({formatPipelineDate(inc.date)})</span></div>
-                      <div className="item-actions"><strong>₹{inc.amount.toLocaleString('en-IN')}</strong><button onClick={() => handleDeleteIncomeItem(inc.id)} className="item-del-btn" style={{background:'none', border:'none', marginLeft:'4px'}}><X size={12}/></button></div>
+                      <strong>₹{inc.amount.toLocaleString('en-IN')}</strong>
                     </div>
                   ))}
                 </div>
@@ -266,7 +274,7 @@ function App() {
                 {strategy.dailySpendsList?.map((item) => (
                     <div key={item.id} style={{display:'flex', justifyContent:'space-between', fontSize:'0.8rem', padding:'4px 0'}}>
                       <div className="item-info"><ReceiptText size={14} style={{marginRight:'4px'}}/><span>{item.label}</span></div>
-                      <div className="item-actions"><strong>₹{item.amount}</strong><button onClick={() => handleDeleteSpendItem(item.id, item.amount)} className="item-del-btn" style={{background:'none', border:'none', marginLeft:'4px'}}><X size={12}/></button></div>
+                      <div className="item-actions"><strong>₹{item.amount}</strong><button onClick={() => handleDeleteSpendItem(item.id, item.amount)} className="item-del-btn" style={{marginLeft:'4px', border:'none', background:'none'}}><X size={12}/></button></div>
                     </div>
                 ))}
                 <button className="log-action-btn" onClick={() => openModal('logSpend')} style={{marginTop:'10px'}}><Plus size={14} /> Log Spend</button>

@@ -1,16 +1,8 @@
 import { db } from "../firebase-config";
 import { 
-  collection, 
-  doc, 
-  setDoc, 
-  updateDoc, 
-  addDoc, 
-  deleteDoc, 
-  onSnapshot, 
-  query, 
-  orderBy, 
-  serverTimestamp 
+  collection, doc, setDoc, updateDoc, addDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp 
 } from "firebase/firestore";
+
 
 // --- Journal Entries with Real-time Caching ---
 export const subscribeToEntries = (callback) => {
@@ -99,4 +91,24 @@ export const updateDebtPayment = async (debtId, newPaidAmount) => {
 // 5. DELETE: Remove a Debt
 export const deleteDebt = async (debtId) => {
   await deleteDoc(doc(db, "finance_debts", debtId));
+};
+
+
+// --- ADD THESE NEW EXPORTS FOR STRATEGY ---
+export const subscribeToStrategy = (callback) => {
+  const docRef = doc(db, "finance", "strategy");
+  return onSnapshot(docRef, (doc) => {
+    if (doc.exists()) {
+      callback(doc.data());
+    } else {
+      // Default values if you haven't logged anything yet
+      callback({ dailySpent: 0, upcomingPayments: [], expectedIncome: [] });
+    }
+  });
+};
+
+export const updateStrategy = async (newData) => {
+  const docRef = doc(db, "finance", "strategy");
+  // setDoc with merge: true creates the document if it's missing
+  await setDoc(docRef, newData, { merge: true });
 };

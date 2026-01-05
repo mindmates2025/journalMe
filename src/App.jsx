@@ -185,7 +185,7 @@ function App() {
           <section className="screen fade-in">
             <div className="card">
               <label className="input-label" style={{display: 'block', marginBottom: '16px', fontWeight: '600'}}>Practice moderation today...</label>
-              <textarea value={input} onChange={(e) => setInput(e.target.value)} placeholder="What's on your mind?" onTouchStart={(e) => e.currentTarget.focus()} />
+              <textarea value={input} onChange={(e) => setInput(e.target.value)} placeholder="What's on your mind?" />
               <button onClick={handleSaveEntry} className="primary-btn"><PenLine size={20} /> Save Reflection</button>
             </div>
           </section>

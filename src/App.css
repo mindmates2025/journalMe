@@ -83,6 +83,9 @@ input,
   color: #1e293b !important; 
   -webkit-text-fill-color: #1e293b !important; 
   opacity: 1;
+  /* Ensure keyboard appears */
+  -webkit-user-select: text !important;
+  user-select: text !important;
 }
 
 textarea {

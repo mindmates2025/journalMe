@@ -25,9 +25,6 @@ body {
   background-color: var(--bg-app);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: var(--text-main);
-  -webkit-user-select: text;
-  user-select: text;
-  -webkit-tap-highlight-color: transparent;
 }
 
 #root {
@@ -45,7 +42,6 @@ body {
   flex-direction: column;
   background-color: var(--bg-app);
   position: relative;
-  touch-action: manipulation;
 }
 
 /* --- 3. UI STYLES --- */
@@ -70,23 +66,36 @@ body {
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
-textarea, input {
+/* CRITICAL FIX: Forces dark text on iPhone/iOS */
+textarea, 
+input,
+.search-input,
+.date-filter-input {
   width: 100%;
   padding: 16px;
   border-radius: 16px;
   border: 1px solid var(--border);
   background-color: #f1f5f9 !important;
   font-family: inherit;
-  font-size: 16px !important;
+  font-size: 1rem;
+  display: block;
+  /* iPhone specific text overrides */
   color: #1e293b !important; 
   -webkit-text-fill-color: #1e293b !important; 
-  -webkit-user-select: text !important;
-  user-select: text !important;
-  cursor: text;
-  touch-action: manipulation;
+  opacity: 1;
 }
 
-textarea { height: 180px; resize: none; margin-bottom: 20px; }
+textarea {
+  height: 180px;
+  resize: none;
+  margin-bottom: 20px;
+}
+
+textarea::placeholder,
+input::placeholder {
+  color: #94a3b8 !important;
+  -webkit-text-fill-color: #94a3b8 !important;
+}
 
 .card {
   background: var(--bg-card);

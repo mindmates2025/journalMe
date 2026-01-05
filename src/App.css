@@ -471,6 +471,7 @@ textarea { height: 180px; resize: none; margin-bottom: 20px; }
 /* Safari Date Input Fix */
 .safari-fix {
   -webkit-appearance: none;
+  appearance: none;
   min-height: 40px;
   color: #1e293b;
 }

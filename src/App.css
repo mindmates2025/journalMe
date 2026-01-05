@@ -25,6 +25,9 @@ body {
   background-color: var(--bg-app);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: var(--text-main);
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #root {
@@ -78,6 +81,7 @@ textarea, input {
   -webkit-text-fill-color: #1e293b !important; 
   -webkit-user-select: text;
   user-select: text;
+  touch-action: manipulation;
 }
 
 textarea { height: 180px; resize: none; margin-bottom: 20px; }

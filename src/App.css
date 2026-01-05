@@ -435,3 +435,34 @@ textarea { height: 180px; resize: none; margin-bottom: 20px; }
 .daily-items-list::-webkit-scrollbar { width: 4px; }
 .daily-items-list::-webkit-scrollbar-track { background: transparent; }
 .daily-items-list::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+
+
+/* Fix Safari Date Input Visibility */
+.safari-date-fix::-webkit-datetime-edit {
+  color: var(--text-main);
+}
+
+/* Ensure the calendar icon is visible and clickable in Safari */
+.safari-date-fix::-webkit-calendar-picker-indicator {
+  background: transparent;
+  bottom: 0;
+  color: transparent;
+  cursor: pointer;
+  height: auto;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: auto;
+}
+
+/* Fallback if placeholder isn't showing */
+.date-filter-input:before {
+  content: attr(placeholder);
+  width: 100%;
+}
+
+.date-filter-input:focus:before,
+.date-filter-input:valid:before {
+  display: none;
+}

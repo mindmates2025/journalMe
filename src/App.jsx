@@ -156,21 +156,21 @@ function App() {
  
 
   // --- UPDATED FILTER LOGIC ---
-const filteredEntries = entries.filter(entry => {
-  const matchesSearch = entry.content.toLowerCase().includes(searchTerm.toLowerCase());
-  
-  let matchesDate = true;
-  if (filterDate && entry.createdAt) {
-    // 1. Convert Firestore Timestamp or JS Date to a standardized YYYY-MM-DD string
-    const dateObj = entry.createdAt.toDate ? entry.createdAt.toDate() : new Date(entry.createdAt);
-    const entryDateString = dateObj.toISOString().split('T')[0]; 
+  const filteredEntries = entries.filter(entry => {
+    const matchesSearch = entry.content.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // 2. Perform direct string comparison
-    matchesDate = entryDateString === filterDate;
-  }
-  
-  return matchesSearch && matchesDate;
-});
+    if (!filterDate) return matchesSearch;
+
+    const dateObj = entry.createdAt?.toDate ? entry.createdAt.toDate() : new Date(entry.createdAt);
+    
+    // Format to local YYYY-MM-DD for comparison with the input value
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const entryDateString = `${year}-${month}-${day}`;
+    
+    return matchesSearch && entryDateString === filterDate;
+  });
 
   return (
     <div className="app-container">
@@ -216,7 +216,7 @@ const filteredEntries = entries.filter(entry => {
     <div className="filter-group" style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
       {/* Search Input */}
       <div className="search-box" style={{ flex: 2, position: 'relative' }}>
-        <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+        <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', zIndex: 1 }} />
         <input 
           type="text" 
           placeholder="Search thoughts..." 
@@ -227,15 +227,22 @@ const filteredEntries = entries.filter(entry => {
         />
       </div>
 
-      {/* Date Filter with Clear Button */}
+      {/* Safari-Optimized Date Filter */}
       <div className="calendar-box" style={{ flex: 1.5, position: 'relative', display: 'flex', alignItems: 'center' }}>
         <input 
           type="date" 
-          className="date-filter-input" 
+          className="date-filter-input safari-date-fix" 
           value={filterDate} 
           onChange={(e) => setFilterDate(e.target.value)} 
-          style={{ width: '100%', paddingRight: filterDate ? '35px' : '10px' }}
+          style={{ 
+            width: '100%', 
+            paddingRight: filterDate ? '35px' : '10px',
+            appearance: 'none', // Force Safari to allow custom styling
+            WebkitAppearance: 'none',
+            minHeight: '40px'
+          }}
         />
+        {/* Manual Reset Button for Safari/Mobile users */}
         {filterDate && (
           <button 
             onClick={() => setFilterDate("")} 
@@ -244,16 +251,17 @@ const filteredEntries = entries.filter(entry => {
               right: '8px', 
               background: '#fee2e2', 
               border: 'none', 
-              borderRadius: '4px', 
-              padding: '4px', 
+              borderRadius: '50%', 
+              width: '24px',
+              height: '24px',
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              zIndex: 2
             }}
-            title="Clear date filter"
           >
-            <X size={14} style={{ color: '#ef4444' }} />
+            <RotateCcw size={14} style={{ color: '#ef4444' }} />
           </button>
         )}
       </div>
@@ -263,8 +271,8 @@ const filteredEntries = entries.filter(entry => {
       {loading ? (
         <p className="status-msg">Gathering thoughts...</p>
       ) : filteredEntries.length === 0 ? (
-        <div className="card empty-state" style={{ textAlign: 'center', padding: '40px 20px' }}>
-          <p style={{ color: '#64748b' }}>No reflections found for this selection.</p>
+        <div className="card empty-state" style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}>
+          <p>No reflections found.</p>
         </div>
       ) : (
         filteredEntries.map(entry => (
@@ -272,11 +280,7 @@ const filteredEntries = entries.filter(entry => {
             <p className="entry-content">{entry.content}</p>
             <div className="entry-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
               <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{formatEntryDate(entry.createdAt)}</span>
-              <button 
-                onClick={() => deleteEntry(entry.id)} 
-                className="delete-text-btn" 
-                style={{ color: '#ef4444', background: 'none', border: 'none', fontWeight: '600', fontSize: '0.85rem' }}
-              >
+              <button onClick={() => deleteEntry(entry.id)} className="delete-text-btn" style={{ color: '#ef4444', background: 'none', border: 'none', fontWeight: '600', fontSize: '0.85rem' }}>
                 Delete
               </button>
             </div>
@@ -286,7 +290,6 @@ const filteredEntries = entries.filter(entry => {
     </div>
   </section>
 )}
-
         {activeTab === 'todo' && (
           <section className="screen fade-in">
              <h3 className="section-title">Daily Tasks</h3>

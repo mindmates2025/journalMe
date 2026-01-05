@@ -177,7 +177,6 @@ function App() {
       <header className="main-header">
         <h1>Journal<span>Me</span></h1>
         <div className="date-pill">Rent in {daysTo11th}d</div>
-        <div className="date-pill">Rent in {daysTo11th}d</div>
       </header>
 
       <main>

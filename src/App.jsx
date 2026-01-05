@@ -306,18 +306,14 @@ function App() {
                   <span className="strat-label">Rent Jail (11th)</span>
                   <p className="strat-value text-primary" style={{fontWeight:'800'}}>₹{Math.ceil(RENT_AMOUNT / daysTo11th).toLocaleString('en-IN')}</p>
                   <small style={{fontSize:'0.6rem'}}>Daily Set Aside</small>
-                  <span className="strat-label">Rent Jail (11th)</span>
-                  <p className="strat-value text-primary" style={{fontWeight:'800'}}>₹{Math.ceil(RENT_AMOUNT / daysTo11th).toLocaleString('en-IN')}</p>
-                  <small style={{fontSize:'0.6rem'}}>Daily Set Aside</small>
+                  
                 </div>
                 <div style={{width:'1px', background:'#e2e8f0'}}></div>
                 <div className="jail-item" style={{textAlign:'center', flex:1}}>
                   <span className="strat-label">Installment (13th)</span>
                   <p className="strat-value text-danger" style={{fontWeight:'800'}}>₹{Math.ceil(MONTHLY_REPAYMENT_TOTAL / daysTo13th).toLocaleString('en-IN')}</p>
                   <small style={{fontSize:'0.6rem'}}>Daily Set Aside</small>
-                  <span className="strat-label">Installment (13th)</span>
-                  <p className="strat-value text-danger" style={{fontWeight:'800'}}>₹{Math.ceil(MONTHLY_REPAYMENT_TOTAL / daysTo13th).toLocaleString('en-IN')}</p>
-                  <small style={{fontSize:'0.6rem'}}>Daily Set Aside</small>
+                  
                 </div>
               </div>
 
@@ -336,7 +332,6 @@ function App() {
                     <div key={inc.id} style={{display:'flex', justifyContent:'space-between', fontSize:'0.75rem', marginBottom:'4px'}}>
                       <div className="item-info"><Clock size={12} style={{marginRight:'4px'}}/><span>{inc.label} ({formatPipelineDate(inc.date)})</span></div>
                       <strong>₹{inc.amount.toLocaleString('en-IN')}</strong>
-                      <strong>₹{inc.amount.toLocaleString('en-IN')}</strong>
                     </div>
                   ))}
                 </div>
@@ -351,7 +346,6 @@ function App() {
                 {strategy.dailySpendsList?.map((item) => (
                     <div key={item.id} style={{display:'flex', justifyContent:'space-between', fontSize:'0.8rem', padding:'4px 0'}}>
                       <div className="item-info"><ReceiptText size={14} style={{marginRight:'4px'}}/><span>{item.label}</span></div>
-                      <div className="item-actions"><strong>₹{item.amount}</strong><button onClick={() => handleDeleteSpendItem(item.id, item.amount)} className="item-del-btn" style={{marginLeft:'4px', border:'none', background:'none'}}><X size={12}/></button></div>
                       <div className="item-actions"><strong>₹{item.amount}</strong><button onClick={() => handleDeleteSpendItem(item.id, item.amount)} className="item-del-btn" style={{marginLeft:'4px', border:'none', background:'none'}}><X size={12}/></button></div>
                     </div>
                 ))}

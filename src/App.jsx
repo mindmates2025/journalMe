@@ -114,8 +114,6 @@ function App() {
 
     // 1. Balance Update
     if (type === 'balance' && val1) await updateBalance(Number(val1));
-    
-    // 2. Debt Payment
     if (type === 'payment' && val1) await updateDebtPayment(data.id, (data.paid || 0) + Number(val1));
     
     // 3. New Debt
@@ -137,7 +135,12 @@ function App() {
     }
 
     // 5. Add Income
+
+    // 5. Add Income
     if (type === 'addIncome' && val1 && val2) {
+      await updateStrategy({ 
+        expectedIncome: [...(strategy.expectedIncome || []), { label: val1, amount: Number(val2), date: val3, id: Date.now() }] 
+      });
       await updateStrategy({ 
         expectedIncome: [...(strategy.expectedIncome || []), { label: val1, amount: Number(val2), date: val3, id: Date.now() }] 
       });
@@ -153,24 +156,7 @@ function App() {
     setActiveTab('history');
   };
 
- 
-
-  // --- UPDATED FILTER LOGIC ---
-  const filteredEntries = entries.filter(entry => {
-    const matchesSearch = entry.content.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    if (!filterDate) return matchesSearch;
-
-    const dateObj = entry.createdAt?.toDate ? entry.createdAt.toDate() : new Date(entry.createdAt);
-    
-    // Format to local YYYY-MM-DD for comparison with the input value
-    const year = dateObj.getFullYear();
-    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const day = String(dateObj.getDate()).padStart(2, '0');
-    const entryDateString = `${year}-${month}-${day}`;
-    
-    return matchesSearch && entryDateString === filterDate;
-  });
+  const filteredEntries = entries.filter(entry => entry.content.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="app-container">
@@ -190,6 +176,7 @@ function App() {
 
       <header className="main-header">
         <h1>Journal<span>Me</span></h1>
+        <div className="date-pill">Rent in {daysTo11th}d</div>
         <div className="date-pill">Rent in {daysTo11th}d</div>
       </header>
 
@@ -319,9 +306,15 @@ function App() {
                   <span className="strat-label">Rent Jail (11th)</span>
                   <p className="strat-value text-primary" style={{fontWeight:'800'}}>₹{Math.ceil(RENT_AMOUNT / daysTo11th).toLocaleString('en-IN')}</p>
                   <small style={{fontSize:'0.6rem'}}>Daily Set Aside</small>
+                  <span className="strat-label">Rent Jail (11th)</span>
+                  <p className="strat-value text-primary" style={{fontWeight:'800'}}>₹{Math.ceil(RENT_AMOUNT / daysTo11th).toLocaleString('en-IN')}</p>
+                  <small style={{fontSize:'0.6rem'}}>Daily Set Aside</small>
                 </div>
                 <div style={{width:'1px', background:'#e2e8f0'}}></div>
                 <div className="jail-item" style={{textAlign:'center', flex:1}}>
+                  <span className="strat-label">Installment (13th)</span>
+                  <p className="strat-value text-danger" style={{fontWeight:'800'}}>₹{Math.ceil(MONTHLY_REPAYMENT_TOTAL / daysTo13th).toLocaleString('en-IN')}</p>
+                  <small style={{fontSize:'0.6rem'}}>Daily Set Aside</small>
                   <span className="strat-label">Installment (13th)</span>
                   <p className="strat-value text-danger" style={{fontWeight:'800'}}>₹{Math.ceil(MONTHLY_REPAYMENT_TOTAL / daysTo13th).toLocaleString('en-IN')}</p>
                   <small style={{fontSize:'0.6rem'}}>Daily Set Aside</small>
@@ -343,6 +336,7 @@ function App() {
                     <div key={inc.id} style={{display:'flex', justifyContent:'space-between', fontSize:'0.75rem', marginBottom:'4px'}}>
                       <div className="item-info"><Clock size={12} style={{marginRight:'4px'}}/><span>{inc.label} ({formatPipelineDate(inc.date)})</span></div>
                       <strong>₹{inc.amount.toLocaleString('en-IN')}</strong>
+                      <strong>₹{inc.amount.toLocaleString('en-IN')}</strong>
                     </div>
                   ))}
                 </div>
@@ -357,6 +351,7 @@ function App() {
                 {strategy.dailySpendsList?.map((item) => (
                     <div key={item.id} style={{display:'flex', justifyContent:'space-between', fontSize:'0.8rem', padding:'4px 0'}}>
                       <div className="item-info"><ReceiptText size={14} style={{marginRight:'4px'}}/><span>{item.label}</span></div>
+                      <div className="item-actions"><strong>₹{item.amount}</strong><button onClick={() => handleDeleteSpendItem(item.id, item.amount)} className="item-del-btn" style={{marginLeft:'4px', border:'none', background:'none'}}><X size={12}/></button></div>
                       <div className="item-actions"><strong>₹{item.amount}</strong><button onClick={() => handleDeleteSpendItem(item.id, item.amount)} className="item-del-btn" style={{marginLeft:'4px', border:'none', background:'none'}}><X size={12}/></button></div>
                     </div>
                 ))}

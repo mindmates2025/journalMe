@@ -26,7 +26,7 @@ const formatPipelineDate = (dateStr) => {
 };
 
 function App() {
-  const [activeTab, setActiveTab] = useState('bank');
+  const [activeTab, setActiveTab] = useState('journal');
   const [entries, setEntries] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);

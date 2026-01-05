@@ -76,6 +76,8 @@ textarea, input {
   font-size: 1rem;
   color: #1e293b !important; 
   -webkit-text-fill-color: #1e293b !important; 
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 textarea { height: 180px; resize: none; margin-bottom: 20px; }

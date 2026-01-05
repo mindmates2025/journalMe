@@ -457,5 +457,101 @@ input::placeholder {
 .daily-items-list::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
 
 
+/* Fix Safari Date Input Visibility */
+.safari-date-fix::-webkit-datetime-edit {
+  color: var(--text-main);
+}
+
+/* Ensure the calendar icon is visible and clickable in Safari */
+.safari-date-fix::-webkit-calendar-picker-indicator {
+  background: transparent;
+  bottom: 0;
+  color: transparent;
+  cursor: pointer;
+  height: auto;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: auto;
+}
+
+/* Fallback if placeholder isn't showing */
+.date-filter-input {
+  position: relative;
+}
+
+.date-filter-input:before {
+  content: attr(placeholder);
+  width: 100%;
+  color: #94a3b8;
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.date-filter-input:focus:before,
+.date-filter-input:valid:before {
+  display: none;
+}
 
 
+/* Safari Date Input Fix */
+.safari-fix {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 40px;
+  color: #1e293b;
+}
+
+.clear-btn-overlay {
+  position: absolute;
+  right: 10px;
+  background: #f1f5f9;
+  border: none;
+  color: #7c3aed; /* Purple theme */
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* Pull-to-Refresh Indicator */
+.pull-refresh-indicator {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #7c3aed;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.refreshing-blur main {
+  filter: blur(2px);
+  opacity: 0.7;
+  pointer-events: none;
+  transition: all 0.3s ease;
+}

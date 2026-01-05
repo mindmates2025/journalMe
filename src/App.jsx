@@ -3,7 +3,7 @@ import {
   addEntry, deleteEntry, subscribeToEntries, subscribeToTasks,
   subscribeToBalance, subscribeToDebts, updateBalance, updateDebtPayment, addDebt, deleteDebt
 } from './journalService';
-import { PenLine, BookOpen, CheckCircle2, Wallet, Trash2, Plus, Search, CheckCheck, CloudOff } from 'lucide-react';
+import { PenLine, BookOpen, CheckCircle2, Wallet, Trash2, Plus, Search, CheckCheck, CloudOff, Target } from 'lucide-react';
 import './App.css';
 
 const formatEntryDate = (date) => {
@@ -50,8 +50,21 @@ function App() {
     };
   }, []);
 
+  // --- GOAL ENGINE MATH ---
+  const totalDebtAmount = debts.reduce((acc, d) => acc + (d.total - (d.paid || 0)), 0);
+  const netPosition = balance.total - totalDebtAmount;
+  
+  // Set your goal parameters (These can be made dynamic later)
+  const targetGoalAmount = 100000; // First Big Savings Goal
+  const targetDate = new Date("2026-03-31"); 
+  const daysRemaining = Math.max(1, Math.ceil((targetDate - new Date()) / (1000 * 60 * 60 * 24)));
+
+  const dailyRepaymentTarget = totalDebtAmount > 0 ? (totalDebtAmount / daysRemaining) : 0;
+  const dailySpendingLimit = netPosition > 0 ? (netPosition / daysRemaining) : 0;
+  const progressToDebtFree = totalDebtAmount === 0 ? 100 : Math.min(100, (balance.total / totalDebtAmount) * 100);
+
   const handleEditBalance = async () => {
-    const newAmt = prompt("Enter new current balance:", balance.total);
+    const newAmt = prompt("Enter current balance:", balance.total);
     if (newAmt !== null && !isNaN(newAmt)) {
       await updateBalance(Number(newAmt));
     }
@@ -69,11 +82,7 @@ function App() {
     const label = prompt("Debt Name:");
     const total = prompt("Total Amount Owed:");
     if (label && total) {
-      await addDebt({
-        label,
-        total: Number(total),
-        paid: 0
-      });
+      await addDebt({ label, total: Number(total), paid: 0 });
     }
   };
 
@@ -97,7 +106,7 @@ function App() {
   const handleSaveEntry = async () => {
     if (!input.trim()) return;
     try {
-      await addEntry(input); // Passes the local 'input' state to Firestore
+      await addEntry(input);
       setInput("");
       setActiveTab('history'); 
     } catch (error) {
@@ -146,94 +155,87 @@ function App() {
             <div className="filter-group">
               <div className="search-box">
                 <Search size={18} className="search-icon" style={{position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8'}} />
-                <input 
-                  type="text" 
-                  placeholder="Search thoughts..." 
-                  className="search-input"
-                  style={{paddingLeft: '40px'}}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+                <input type="text" placeholder="Search thoughts..." className="search-input" style={{paddingLeft: '40px'}} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
               </div>
               <div className="calendar-box">
-                <input 
-                  type="date" 
-                  className="date-filter-input"
-                  value={filterDate}
-                  onChange={(e) => setFilterDate(e.target.value)}
-                />
+                <input type="date" className="date-filter-input" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
               </div>
             </div>
             <div className="entries-list">
-              {loading ? (
-                <p className="status-msg">Gathering your thoughts...</p>
-              ) : (
-                filteredEntries.map(entry => (
-                  <div key={entry.id} className="card entry-card">
-                    <p className="entry-content" style={{lineHeight: '1.6', marginBottom: '16px'}}>{entry.content}</p>
-                    <div className="card-divider" style={{height: '1px', background: '#f1f5f9', marginBottom: '12px'}}></div>
-                    <div className="entry-footer" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                      <div className="entry-meta-group" style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                        <span className="entry-date" style={{fontSize: '0.85rem', color: '#64748b', fontWeight: '600'}}>{formatEntryDate(entry.createdAt)}</span>
-                        <div className="sync-indicator">
-                          {entry.metadata?.hasPendingWrites ? (
-                            <div className="sync-tag pending" style={{fontSize: '0.7rem', color: '#94a3b8'}}><CloudOff size={14} /> Saving</div>
-                          ) : (
-                            <div className="sync-tag synced" style={{fontSize: '0.7rem', color: '#10b981'}}><CheckCheck size={14} /> Synced</div>
-                          )}
-                        </div>
+              {loading ? <p className="status-msg">Gathering thoughts...</p> : filteredEntries.map(entry => (
+                <div key={entry.id} className="card entry-card">
+                  <p className="entry-content" style={{lineHeight: '1.6', marginBottom: '16px'}}>{entry.content}</p>
+                  <div className="card-divider" style={{height: '1px', background: '#f1f5f9', marginBottom: '12px'}}></div>
+                  <div className="entry-footer" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                    <div className="entry-meta-group" style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                      <span className="entry-date" style={{fontSize: '0.85rem', color: '#64748b', fontWeight: '600'}}>{formatEntryDate(entry.createdAt)}</span>
+                      <div className="sync-indicator">
+                        {entry.metadata?.hasPendingWrites ? <div className="sync-tag pending" style={{fontSize: '0.7rem', color: '#94a3b8'}}><CloudOff size={14} /> Saving</div> : <div className="sync-tag synced" style={{fontSize: '0.7rem', color: '#10b981'}}><CheckCheck size={14} /> Synced</div>}
                       </div>
-                      <button onClick={() => handleDeleteEntry(entry.id)} className="delete-text-btn" style={{background: 'none', border: 'none', color: '#ef4444', fontWeight: '600'}}>Delete</button>
                     </div>
+                    <button onClick={() => handleDeleteEntry(entry.id)} className="delete-text-btn" style={{background: 'none', border: 'none', color: '#ef4444', fontWeight: '600'}}>Delete</button>
                   </div>
-                ))
-              )}
+                </div>
+              ))}
             </div>
           </section>
         )}
 
         {activeTab === 'bank' && (
           <section className="screen fade-in">
+            {/* NET POSITION HERO */}
             <div className="bank-hero-card" onClick={handleEditBalance}>
               <div className="hero-content">
-                <p className="hero-label">Available Balance</p>
-                <h2 className="hero-amount">₹{balance.total.toLocaleString('en-IN')}</h2>
+                <p className="hero-label">Net Financial Position</p>
+                <h2 className="hero-amount">
+                  {netPosition >= 0 ? `+₹${netPosition.toLocaleString('en-IN')}` : `-₹${Math.abs(netPosition).toLocaleString('en-IN')}`}
+                </h2>
+                <p className="hero-subtitle" style={{opacity: 0.8, fontSize: '0.85rem', marginTop: '4px'}}>Current Balance: ₹{balance.total.toLocaleString('en-IN')}</p>
               </div>
               <div className="hero-accent-circle"></div>
             </div>
 
-            <div className="section-header-row" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-              <h3 className="section-title">Debt Progress</h3>
-              <button className="add-debt-btn" onClick={handleAddNewDebt}>
-                <Plus size={18} /> Add
-              </button>
+            {/* DAILY ROADMAP CARD */}
+            <h3 className="section-title">Daily Strategy</h3>
+            <div className="card strategy-card">
+              <div className="strategy-grid">
+                <div className="strategy-item">
+                  <span className="strat-label">Repayment/Day</span>
+                  <p className="strat-value text-danger">₹{Math.ceil(dailyRepaymentTarget).toLocaleString('en-IN')}</p>
+                </div>
+                <div className="strategy-divider"></div>
+                <div className="strategy-item">
+                  <span className="strat-label">Safe Spend/Day</span>
+                  <p className="strat-value text-success">₹{Math.floor(dailySpendingLimit).toLocaleString('en-IN')}</p>
+                </div>
+              </div>
+              <div className="timeline-visual">
+                <div className="timeline-bar">
+                  <div className="timeline-progress" style={{width: `${progressToDebtFree}%`}}></div>
+                </div>
+                <p className="timeline-label">
+                  {progressToDebtFree >= 100 ? "Debt Free! Building towards goal..." : `${Math.round(progressToDebtFree)}% of the way to Debt Free`}
+                </p>
+              </div>
+            </div>
+
+            <div className="section-header-row" style={{marginTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              <h3 className="section-title">Active Debts</h3>
+              <button className="add-debt-btn" onClick={handleAddNewDebt}><Plus size={18} /> Add</button>
             </div>
 
             <div className="debt-stack">
-              {debts.length === 0 ? (
-                <div className="card empty-finance">
-                  <p>No debts currently tracked.</p>
-                </div>
-              ) : (
-                debts.map(debt => (
-                  <div key={debt.id} className="card debt-item-card" onClick={() => handleLogPayment(debt)}>
-                    <div className="debt-header">
-                      <span className="debt-name">{debt.label}</span>
-                      <span className="debt-remaining-tag">₹{(debt.total - debt.paid).toLocaleString('en-IN')} left</span>
-                    </div>
-                    <div className="progress-container">
-                      <div className="progress-bar-fill" style={{ width: `${Math.min((debt.paid / debt.total) * 100, 100)}%` }}></div>
-                    </div>
-                    <div className="debt-stats">
-                      <span>Paid: ₹{debt.paid.toLocaleString('en-IN')}</span>
-                      <span>Goal: ₹{debt.total.toLocaleString('en-IN')}</span>
-                    </div>
-                    <button className="debt-delete-icon" onClick={(e) => { e.stopPropagation(); handleDeleteDebt(e, debt.id); }}>
-                      <Trash2 size={14} />
-                    </button>
+              {debts.map(debt => (
+                <div key={debt.id} className="card debt-item-card" onClick={() => handleLogPayment(debt)}>
+                  <div className="debt-header">
+                    <span className="debt-name">{debt.label}</span>
+                    <span className="debt-remaining-tag">₹{(debt.total - debt.paid).toLocaleString('en-IN')} left</span>
                   </div>
-                ))
-              )}
+                  <div className="progress-container"><div className="progress-bar-fill" style={{ width: `${Math.min((debt.paid / debt.total) * 100, 100)}%` }}></div></div>
+                  <div className="debt-stats"><span>Paid: ₹{debt.paid.toLocaleString('en-IN')}</span><span>Goal: ₹{debt.total.toLocaleString('en-IN')}</span></div>
+                  <button className="debt-delete-icon" onClick={(e) => { e.stopPropagation(); handleDeleteDebt(e, debt.id); }}><Trash2 size={14} /></button>
+                </div>
+              ))}
             </div>
           </section>
         )}

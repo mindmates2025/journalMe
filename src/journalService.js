@@ -1,24 +1,27 @@
 import { db } from "../firebase-config";
 import { 
-  collection, doc, updateDoc, addDoc, deleteDoc, onSnapshot, query, orderBy 
+  collection, 
+  doc, 
+  setDoc, 
+  updateDoc, 
+  addDoc, 
+  deleteDoc, 
+  onSnapshot, 
+  query, 
+  orderBy, 
+  serverTimestamp 
 } from "firebase/firestore";
 
-
 // --- Journal Entries with Real-time Caching ---
-// Instead of a one-time fetch, we use a listener
 export const subscribeToEntries = (callback) => {
   const q = query(collection(db, "entries"), orderBy("createdAt", "desc"));
-  
-  // onSnapshot is smart: it checks local cache first, then only fetches 
-  // updates from the server. This drastically reduces your read count.
-  return onSnapshot(q, (snapshot) => {
+  return onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
     const entries = snapshot.docs.map(doc => ({ 
       id: doc.id, 
-      ...doc.data() 
+      ...doc.data(),
+      metadata: doc.metadata 
     }));
     callback(entries);
-  }, (error) => {
-    console.error("Firestore Error:", error);
   });
 };
 
@@ -33,7 +36,7 @@ export const deleteEntry = async (id) => {
   await deleteDoc(doc(db, "entries", id));
 };
 
-// --- Tasks (Todo List) with Real-time Caching ---
+// --- Tasks (Todo List) ---
 export const subscribeToTasks = (callback) => {
   const q = query(collection(db, "tasks"), orderBy("createdAt", "desc"));
   return onSnapshot(q, (snapshot) => {
@@ -53,46 +56,16 @@ export const addTask = async (text) => {
   });
 };
 
-// --- Finance (Bank) ---
-export const subscribeToBankData = (callback) => {
-  return onSnapshot(collection(db, "finance"), (snapshot) => {
-    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    callback(data);
-  });
-};
-
-
-// --- Finance (Bank) Real-time Subscription ---
-export const subscribeToFinance = (callback) => {
-  const collectionRef = collection(db, "finance");
-  
-  // Using onSnapshot to keep your bank data updated with 0-cost caching
-  return onSnapshot(collectionRef, (snapshot) => {
-    const data = snapshot.docs.reduce((acc, doc) => {
-      acc[doc.id] = doc.data();
-      return acc;
-    }, {});
-    callback(data);
-  });
-};
-
-// Function to update a specific debt payment or balance
-export const updateFinanceRecord = async (docId, newData) => {
-  const docRef = doc(db, "finance", docId);
-  await updateDoc(docRef, newData);
-};
-
-
-
 // --- FINANCE CRUD OPERATIONS ---
 
 // 1. READ: Subscribe to Balance
 export const subscribeToBalance = (callback) => {
+  // Listen specifically to the 'balance' document inside 'finance'
   return onSnapshot(doc(db, "finance", "balance"), (doc) => {
     if (doc.exists()) {
       callback(doc.data());
     } else {
-      callback({ total: 0 }); // Default if doc doesn't exist
+      callback({ total: 0 }); 
     }
   });
 };
@@ -108,13 +81,14 @@ export const subscribeToDebts = (callback) => {
 
 // 3. CREATE: Add a new Debt
 export const addDebt = async (debtData) => {
-  // debtData: { label: "Car Loan", total: 500000, paid: 0, amount: 500000 }
   await addDoc(collection(db, "finance_debts"), debtData);
 };
 
-// 4. UPDATE: Update Balance or Debt Payment
+// 4. UPDATE: Update Balance (FIXED: Uses setDoc to create the collection if missing)
 export const updateBalance = async (newTotal) => {
-  await updateDoc(doc(db, "finance", "balance"), { total: newTotal });
+  const docRef = doc(db, "finance", "balance");
+  // setDoc will create the 'finance' collection and 'balance' doc automatically
+  await setDoc(docRef, { total: newTotal }, { merge: true });
 };
 
 export const updateDebtPayment = async (debtId, newPaidAmount) => {

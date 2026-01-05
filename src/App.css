@@ -552,3 +552,33 @@ input::placeholder {
   pointer-events: none;
   transition: all 0.3s ease;
 }
+
+
+/* --- CRITICAL KEYBOARD FIX FOR STANDALONE MODE --- */
+textarea, 
+input, 
+[contenteditable] {
+  /* Forces iOS to allow text selection and focus */
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  
+  /* Prevents iOS from 'graying out' the element instead of focusing it */
+  -webkit-tap-highlight-color: rgba(0,0,0,0);
+  
+  /* Ensures the font is at least 16px to prevent 'auto-zoom' keyboard bugs */
+  font-size: 16px !important;
+  
+  /* Standardizes opacity for iOS */
+  opacity: 1 !important;
+}
+
+/* Ensure the app container doesn't block touch events to inputs */
+.app-container, .card, .modal-content {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Specifically for Safari standalone mode to show the keyboard cursor */
+input:focus, textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}

@@ -1,92 +1,119 @@
 import React, { useState, useEffect } from 'react';
 import { 
   addEntry, deleteEntry, 
-  addTask, subscribeToEntries, subscribeToTasks 
+  addTask, subscribeToEntries, subscribeToTasks,
+  // --- ADDED FINANCE IMPORTS ---
+  subscribeToBalance, subscribeToDebts, updateBalance, updateDebtPayment, addDebt, deleteDebt
 } from './journalService';
-import { PenLine, BookOpen, CheckCircle2, Wallet, Trash2, Plus, Search } from 'lucide-react';
+import { PenLine, BookOpen, CheckCircle2, Wallet, Trash2, Plus, Search, CheckCheck, CloudOff, PlusCircle } from 'lucide-react';
 import './App.css';
-import { CheckCheck, CloudOff } from 'lucide-react'; // Add these icons
+
+const formatEntryDate = (date) => {
+  if (!date) return "Just now";
+  const d = date.toDate ? date.toDate() : new Date(date);
+  const now = new Date();
+  const dDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffInDays = Math.floor((nowDate - dDate) / (1000 * 60 * 60 * 24));
+
+  if (diffInDays === 0) return "Today";
+  if (diffInDays === 1) return "Yesterday";
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+};
 
 function App() {
   const [activeTab, setActiveTab] = useState('history');
   const [entries, setEntries] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  // --- FINANCE STATES ---
+  const [balance, setBalance] = useState({ total: 0 });
+  const [debts, setDebts] = useState([]);
+
   const [input, setInput] = useState("");
   const [taskInput, setTaskInput] = useState("");
-  const [loading, setLoading] = useState(true);
-
-  // States for filtering
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDate, setFilterDate] = useState("");
 
-  // Real-time Subscriptions (Step 3: Implementation)
   useEffect(() => {
     setLoading(true);
-
-    // Subscribe to Journal Entries - Loads from Cache first
-    const unsubscribeEntries = subscribeToEntries((data) => {
+    
+    // Subscriptions
+    const unsubEntries = subscribeToEntries((data) => {
       setEntries(data);
       setLoading(false); 
     });
+    const unsubTasks = subscribeToTasks((data) => setTasks(data));
+    
+    // --- FINANCE SUBSCRIPTIONS ---
+    const unsubBalance = subscribeToBalance((data) => setBalance(data));
+    const unsubDebts = subscribeToDebts((data) => setDebts(data));
 
-    // Subscribe to Tasks - Loads from Cache first
-    const unsubscribeTasks = subscribeToTasks((data) => {
-      setTasks(data);
-    });
-
-    // Clean up listeners when the component unmounts
     return () => {
-      unsubscribeEntries();
-      unsubscribeTasks();
+      unsubEntries();
+      unsubTasks();
+      unsubBalance();
+      unsubDebts();
     };
   }, []);
 
-  // Filter logic remains client-side to keep it fast and free
+  // --- FINANCE ACTIONS ---
+  const handleEditBalance = async () => {
+    const newAmt = prompt("Enter new current balance:", balance.total);
+    if (newAmt !== null && !isNaN(newAmt)) {
+      await updateBalance(Number(newAmt));
+    }
+  };
+
+  const handleLogPayment = async (debt) => {
+    const pay = prompt(`Payment for ${debt.label}:`, "0");
+    if (pay !== null && !isNaN(pay)) {
+      const newPaid = (debt.paid || 0) + Number(pay);
+      await updateDebtPayment(debt.id, newPaid);
+    }
+  };
+
+  const handleAddNewDebt = async () => {
+    const label = prompt("Debt Name (e.g., Credit Card):");
+    const total = prompt("Total Amount Owed:");
+    if (label && total) {
+      await addDebt({
+        label,
+        total: Number(total),
+        paid: 0,
+        amount: Number(total) // Initial remaining amount
+      });
+    }
+  };
+
+  const handleDeleteDebt = async (e, id) => {
+    e.stopPropagation(); // Prevents triggering payment prompt
+    if (window.confirm("Remove this debt tracker?")) {
+      await deleteDebt(id);
+    }
+  };
+
   const filteredEntries = entries.filter(entry => {
     const matchesSearch = entry.content.toLowerCase().includes(searchTerm.toLowerCase());
-    
     let matchesDate = true;
     if (filterDate && entry.createdAt?.toDate) {
       const entryDate = entry.createdAt.toDate().toISOString().split('T')[0];
       matchesDate = entryDate === filterDate;
     }
-    
     return matchesSearch && matchesDate;
   });
 
-  // Helper function for "Today" / "Yesterday" / Date
-  const formatEntryDate = (date) => {
-    if (!date) return "Just now";
-    
-    const d = date.toDate ? date.toDate() : new Date(date);
-    const now = new Date();
-    
-    const diffInDays = Math.floor((now - d) / (1000 * 60 * 60 * 24));
-    
-    if (diffInDays === 0 && d.getDate() === now.getDate()) return "Today";
-    if (diffInDays === 1 || (diffInDays === 0 && d.getDate() !== now.getDate())) return "Yesterday";
-    
-    return d.toLocaleDateString('en-IN', { 
-      day: 'numeric', month: 'short', year: 'numeric' 
-    });
-  };
-
   const handleSaveEntry = async () => {
     if (!input.trim()) return;
-    await addEntry(input); // Listener automatically updates the UI
+    await addEntry(input);
     setInput("");
     setActiveTab('history'); 
   };
 
-  const handleAddTask = async () => {
-    if (!taskInput.trim()) return;
-    await addTask(taskInput); // Listener automatically updates the UI
-    setTaskInput("");
-  };
-
   const handleDeleteEntry = async (id) => {
     if (window.confirm("Delete this reflection?")) {
-      await deleteEntry(id); // Listener automatically handles removal
+      await deleteEntry(id);
     }
   };
 
@@ -100,7 +127,6 @@ function App() {
       </header>
 
       <main>
-        {/* SCREEN 1: WRITE */}
         {activeTab === 'journal' && (
           <section className="screen fade-in">
             <div className="card">
@@ -114,20 +140,15 @@ function App() {
                 <PenLine size={20} /> Save Reflection
               </button>
             </div>
-            <div className="quote-card">
-              <p>"Moderation is the silken string running through the pearl-chain of all virtues."</p>
-            </div>
           </section>
         )}
 
-        {/* SCREEN 2: ENTRIES */}
         {activeTab === 'history' && (
           <section className="screen fade-in">
             <div className="section-header-row">
               <h3 className="section-title">Recent Reflections</h3>
               <span className="pill">{filteredEntries.length} Entries</span>
             </div>
-
             <div className="filter-group">
               <div className="search-box">
                 <Search size={18} className="search-icon" />
@@ -139,63 +160,36 @@ function App() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              
               <div className="calendar-box">
                 <input 
                   type="date" 
                   className="date-filter-input"
-                  
                   value={filterDate}
                   onChange={(e) => setFilterDate(e.target.value)}
                 />
-                {filterDate && (
-                  <button className="clear-filter-btn" onClick={() => setFilterDate("")}>✕</button>
-                )}
+                {filterDate && <button className="clear-filter-btn" onClick={() => setFilterDate("")}>✕</button>}
               </div>
             </div>
-
             <div className="entries-list">
               {loading ? (
                 <p className="status-msg">Gathering your thoughts...</p>
-              ) : filteredEntries.length === 0 ? (
-                <div className="empty-state">
-                  <p>No reflections found.</p>
-                  {(searchTerm || filterDate) && (
-                    <button className="text-btn" onClick={() => {setSearchTerm(""); setFilterDate("");}}>
-                      Clear all filters
-                    </button>
-                  )}
-                </div>
               ) : (
                 filteredEntries.map(entry => (
                   <div key={entry.id} className="card entry-card">
                     <p className="entry-content">{entry.content}</p>
                     <div className="card-divider"></div>
                     <div className="entry-footer">
-                      <span className="entry-date">
-                        {formatEntryDate(entry.createdAt)}
-                      </span>
-
-                    <div className="sync-indicator">
-                    {entry.metadata?.hasPendingWrites ? (
-                      <div className="sync-tag pending" title="Saving locally...">
-                        <CloudOff size={14} />
-                        <span>Pending</span>
+                      <div className="entry-meta-group">
+                        <span className="entry-date">{formatEntryDate(entry.createdAt)}</span>
+                        <div className="sync-indicator">
+                          {entry.metadata?.hasPendingWrites ? (
+                            <div className="sync-tag pending"><CloudOff size={14} /><span>Saving</span></div>
+                          ) : (
+                            <div className="sync-tag synced"><CheckCheck size={14} /><span>Synced</span></div>
+                          )}
+                        </div>
                       </div>
-                    ) : (
-                      <div className="sync-tag synced" title="Synced to cloud">
-                        <CheckCheck size={14} />
-                        <span>Synced</span>
-                      </div>
-                    )}
-                  </div>
-      
-                    <button 
-                      onClick={() => handleDeleteEntry(entry.id)} 
-                      className="delete-text-btn"
-                    >
-                      Delete
-                    </button>                    
+                      <button onClick={() => handleDeleteEntry(entry.id)} className="delete-text-btn">Delete</button>
                     </div>
                   </div>
                 ))
@@ -204,42 +198,48 @@ function App() {
           </section>
         )}
 
-        {/* SCREEN 3: TASKS */}
-        {activeTab === 'todo' && (
-          <section className="screen fade-in">
-            <h3 className="section-title">Daily Focus</h3>
-            <div className="card task-input-card">
-              <input 
-                value={taskInput} 
-                onChange={(e) => setTaskInput(e.target.value)} 
-                placeholder="Add a new task..." 
-                className="task-input"
-              />
-              <button onClick={handleAddTask} className="add-task-btn"><Plus size={24} /></button>
-            </div>
-            <div className="task-list">
-              {tasks.map(task => (
-                <div key={task.id} className="task-item">
-                  <input type="checkbox" checked={task.completed} readOnly />
-                  <span>{task.text}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* SCREEN 4: BANK */}
+        {/* --- DYNAMIC BANK SCREEN --- */}
         {activeTab === 'bank' && (
           <section className="screen fade-in">
-            <div className="card bank-hero">
-              <p>Total Balance</p>
-              <h2>₹40,000</h2>
+            <div className="card bank-hero" onClick={handleEditBalance}>
+              <p className="bank-label">Total Balance (Tap to edit)</p>
+              <h2 className="balance-amount">₹{balance.total.toLocaleString('en-IN')}</h2>
             </div>
-            <h3 className="section-title">Debt Tracker</h3>
+            
+            <div className="section-header-row">
+              <h3 className="section-title">Debt Tracker</h3>
+              <button onClick={handleAddNewDebt} className="icon-btn-text">
+                <PlusCircle size={20} /> Add Debt
+              </button>
+            </div>
+
             <div className="debt-stack">
-               <DebtItem label="Credit Card 1" amount="59,000" progress={75} />
-               <DebtItem label="Credit Card 2" amount="14,000" progress={40} />
-               <DebtItem label="Loan" amount="38,000" progress={60} />
+              {debts.length === 0 ? (
+                <div className="empty-state">
+                  <p>No debts tracked yet.</p>
+                </div>
+              ) : (
+                debts.map(debt => (
+                  <div key={debt.id} className="card debt-card" onClick={() => handleLogPayment(debt)}>
+                    <div className="debt-info">
+                      <span>{debt.label}</span>
+                      <div className="debt-actions">
+                        <strong>₹{(debt.total - debt.paid).toLocaleString('en-IN')}</strong>
+                        <button className="delete-icon-btn" onClick={(e) => handleDeleteDebt(e, debt.id)}>
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="progress-bar-bg">
+                      <div 
+                        className="progress-fill" 
+                        style={{ width: `${Math.min((debt.paid / debt.total) * 100, 100)}%` }}
+                      ></div>
+                    </div>
+                    <p className="debt-helper">Tap to log payment • ₹{debt.paid.toLocaleString('en-IN')} paid</p>
+                  </div>
+                ))
+              )}
             </div>
           </section>
         )}
@@ -260,18 +260,6 @@ const NavBtn = ({ icon, label, active, onClick }) => (
     {React.cloneElement(icon, { size: 24 })}
     <span>{label}</span>
   </button>
-);
-
-const DebtItem = ({ label, amount, progress }) => (
-  <div className="card debt-card">
-    <div className="debt-info">
-      <span>{label}</span>
-      <strong>₹{amount}</strong>
-    </div>
-    <div className="progress-bar-bg">
-      <div className="progress-fill" style={{ width: `${progress}%` }}></div>
-    </div>
-  </div>
 );
 
 export default App;

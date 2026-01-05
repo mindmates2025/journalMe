@@ -1,14 +1,8 @@
 import { db } from "../firebase-config";
 import { 
-  collection, 
-  addDoc, 
-  deleteDoc, 
-  doc, 
-  query, 
-  orderBy, 
-  serverTimestamp,
-  onSnapshot
+  collection, doc, updateDoc, addDoc, deleteDoc, onSnapshot, query, orderBy 
 } from "firebase/firestore";
+
 
 // --- Journal Entries with Real-time Caching ---
 // Instead of a one-time fetch, we use a listener
@@ -65,4 +59,70 @@ export const subscribeToBankData = (callback) => {
     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     callback(data);
   });
+};
+
+
+// --- Finance (Bank) Real-time Subscription ---
+export const subscribeToFinance = (callback) => {
+  const collectionRef = collection(db, "finance");
+  
+  // Using onSnapshot to keep your bank data updated with 0-cost caching
+  return onSnapshot(collectionRef, (snapshot) => {
+    const data = snapshot.docs.reduce((acc, doc) => {
+      acc[doc.id] = doc.data();
+      return acc;
+    }, {});
+    callback(data);
+  });
+};
+
+// Function to update a specific debt payment or balance
+export const updateFinanceRecord = async (docId, newData) => {
+  const docRef = doc(db, "finance", docId);
+  await updateDoc(docRef, newData);
+};
+
+
+
+// --- FINANCE CRUD OPERATIONS ---
+
+// 1. READ: Subscribe to Balance
+export const subscribeToBalance = (callback) => {
+  return onSnapshot(doc(db, "finance", "balance"), (doc) => {
+    if (doc.exists()) {
+      callback(doc.data());
+    } else {
+      callback({ total: 0 }); // Default if doc doesn't exist
+    }
+  });
+};
+
+// 2. READ: Subscribe to Debts (Real-time)
+export const subscribeToDebts = (callback) => {
+  const q = query(collection(db, "finance_debts"), orderBy("label", "asc"));
+  return onSnapshot(q, (snapshot) => {
+    const debts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    callback(debts);
+  });
+};
+
+// 3. CREATE: Add a new Debt
+export const addDebt = async (debtData) => {
+  // debtData: { label: "Car Loan", total: 500000, paid: 0, amount: 500000 }
+  await addDoc(collection(db, "finance_debts"), debtData);
+};
+
+// 4. UPDATE: Update Balance or Debt Payment
+export const updateBalance = async (newTotal) => {
+  await updateDoc(doc(db, "finance", "balance"), { total: newTotal });
+};
+
+export const updateDebtPayment = async (debtId, newPaidAmount) => {
+  const debtRef = doc(db, "finance_debts", debtId);
+  await updateDoc(debtRef, { paid: newPaidAmount });
+};
+
+// 5. DELETE: Remove a Debt
+export const deleteDebt = async (debtId) => {
+  await deleteDoc(doc(db, "finance_debts", debtId));
 };

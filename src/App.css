@@ -466,3 +466,61 @@ textarea { height: 180px; resize: none; margin-bottom: 20px; }
 .date-filter-input:valid:before {
   display: none;
 }
+
+
+/* Safari Date Input Fix */
+.safari-fix {
+  -webkit-appearance: none;
+  min-height: 40px;
+  color: #1e293b;
+}
+
+.clear-btn-overlay {
+  position: absolute;
+  right: 10px;
+  background: #f1f5f9;
+  border: none;
+  color: #7c3aed; /* Purple theme */
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* Pull-to-Refresh Indicator */
+.pull-refresh-indicator {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #7c3aed;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.refreshing-blur main {
+  filter: blur(2px);
+  opacity: 0.7;
+  pointer-events: none;
+  transition: all 0.3s ease;
+}

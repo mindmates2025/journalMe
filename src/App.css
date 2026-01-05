@@ -1,4 +1,10 @@
-/* App.css - Clean & Consistent Theme */
+/* --- 1. THE FOUNDATION (The absolute fix for side-collapse) --- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 :root {
   --primary: #8b5cf6; 
   --primary-dark: #7c3aed;
@@ -10,32 +16,38 @@
   --danger: #ef4444;
 }
 
-/* 1. Global Reset - Crucial for local/production consistency */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
+/* Force the body to act as a centering container */
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  margin: 0;
+  width: 100%;
+  min-height: 100vh;
+  display: flex !important; /* Forces layout mode */
+  justify-content: center !important; /* Centers horizontally */
   background-color: var(--bg-app);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: var(--text-main);
-  padding-bottom: 90px;
-  overflow-x: hidden;
 }
 
-/* 2. Centered Mobile View Container */
+/* Ensure Vite's #root doesn't break centering */
+#root {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* --- 2. THE APP CONTAINER (Centered & Constrained) --- */
 .app-container {
-  max-width: 480px; 
-  margin: 0 auto; /* Centers the app on desktop */
-  padding: 24px;
+  width: 100%;
+  max-width: 480px; /* Standard mobile app width */
   min-height: 100vh;
+  padding: 24px 24px 100px 24px; /* Bottom padding for nav */
   display: flex;
   flex-direction: column;
+  background-color: var(--bg-app);
+  position: relative;
 }
 
-/* === Header === */
+/* --- 3. YOUR ORIGINAL CLEAN UI STYLES --- */
 .main-header {
   display: flex;
   justify-content: space-between;
@@ -50,11 +62,17 @@ body {
   letter-spacing: -0.025em;
 }
 
-.main-header h1 span {
-  color: var(--primary);
+.main-header h1 span { color: var(--primary); }
+
+.date-pill {
+  background: var(--bg-card);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
-/* === Write Screen & Inputs === */
 .card {
   background: var(--bg-card);
   padding: 24px;
@@ -62,7 +80,7 @@ body {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
   margin-bottom: 24px;
   border: 1px solid var(--border);
-  width: 100%; /* Forces card to fill the 480px container */
+  width: 100%;
 }
 
 textarea {
@@ -72,7 +90,6 @@ textarea {
   border-radius: 16px;
   border: 1px solid var(--border);
   background: #f1f5f9;
-  color: var(--text-main);
   font-family: inherit;
   font-size: 1rem;
   resize: none;
@@ -80,97 +97,38 @@ textarea {
   display: block;
 }
 
-textarea:focus {
-  outline: none;
-  border-color: var(--primary);
-  background: var(--bg-card);
-  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
-}
-
-/* === Entries & Lists === */
-.entries-list {
+.primary-btn {
+  width: 100%;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--primary);
+  color: white;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-  width: 100%;
-  align-items: stretch; /* Forces children to take full width regardless of text */
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 }
 
-.entry-card {
-  width: 100% !important;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-}
-
-/* === Filter Group Layout === */
-.filter-group {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
-  width: 100%;
-}
-
-.search-box {
-  flex: 2;
-  position: relative;
-}
-
-.search-icon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-  z-index: 1;
-}
-
-.search-input {
-  width: 100%;
-  height: 48px;
-  padding: 0 16px 0 42px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  font-size: 0.95rem;
-  outline: none;
-}
-
-.calendar-box {
-  flex: 1.2;
-  position: relative;
-}
-
-.date-filter-input {
-  width: 100%;
-  height: 48px;
-  padding: 0 12px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background-color: #ffffff !important;
-  color: #1e293b !important;
-  -webkit-appearance: none;
-  appearance: none;
-  font-size: 0.85rem;
-}
-
-/* === Bottom Navigation Fix === */
+/* --- 4. NAVIGATION BAR (Fixed to App Container) --- */
 .bottom-nav {
   position: fixed;
   bottom: 0;
   left: 50%;
-  transform: translateX(-50%); /* Centers the nav bar on desktop */
+  transform: translateX(-50%);
   width: 100%;
-  max-width: 480px; /* Matches the app container */
-  background: rgba(255, 255, 255, 0.9);
+  max-width: 480px;
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px);
   display: flex;
   justify-content: space-around;
   padding: 12px 0 30px;
   border-top: 1px solid var(--border);
-  z-index: 100;
+  z-index: 1000;
 }
 
-/* Rest of your Nav and Sync styles remain the same... */
 .nav-btn {
   background: none;
   border: none;
@@ -180,22 +138,42 @@ textarea:focus {
   color: var(--text-muted);
   font-size: 0.7rem;
   font-weight: 600;
+  cursor: pointer;
 }
 
 .nav-btn.active { color: var(--primary); }
 
-.sync-tag {
+/* --- 5. ENTRIES & FILTERS --- */
+.entries-list {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.7rem;
-  font-weight: 600;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  align-items: stretch;
 }
-.sync-tag.synced { color: #10b981; }
-.sync-tag.pending { color: #94a3b8; animation: pulseSync 2s infinite; }
 
-@keyframes pulseSync {
-  0% { opacity: 0.5; }
-  50% { opacity: 1; }
-  100% { opacity: 0.5; }
+.filter-group {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  width: 100%;
+}
+
+.search-box { flex: 2; position: relative; display: flex; align-items: center; }
+.search-input {
+  width: 100%;
+  padding: 12px 12px 12px 38px !important;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+}
+
+.calendar-box { flex: 1.2; position: relative; }
+.date-filter-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: white !important;
+  -webkit-appearance: none;
 }

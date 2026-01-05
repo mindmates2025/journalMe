@@ -63,30 +63,30 @@ function App() {
   }, []);
 
   // --- 1. FIXED COMMITMENTS ---
-  const MONTHLY_REPAYMENT_TOTAL = 10683; // 4835 + 4013 + 1835
-  const RENT_AMOUNT = 15000; // Change this to your actual rent
+  const MONTHLY_REPAYMENT_TOTAL = 10813; 
   const REPAYMENT_DAY = 13;
-  const RENT_DUE_DAY = 1;
 
-  // --- 2. DEADLINE MATH ENGINE ---
-  const getDaysUntil = (targetDay) => {
-    const now = new Date();
+  // --- 2. LIQUIDITY MATH ENGINE (FIXED FOR DATES) ---
+  const now = new Date();
+  const getDaysUntil13th = () => {
     const today = now.getDate();
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    if (today <= targetDay) return targetDay - today + 1;
-    return (lastDay - today) + targetDay + 1;
+    if (today <= REPAYMENT_DAY) return REPAYMENT_DAY - today + 1;
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return (lastDayOfMonth - today) + REPAYMENT_DAY + 1;
   };
+  const daysRemainingTo13th = getDaysUntil13th();
 
-  const daysTo13th = getDaysUntil(REPAYMENT_DAY);
-  const daysToRent = getDaysUntil(RENT_DUE_DAY);
+  const deadlineDate = new Date(now.getFullYear(), now.getMonth(), REPAYMENT_DAY);
+  const safeIncome = (strategy?.expectedIncome || []).filter(inc => {
+    if (!inc.date) return false;
+    return new Date(inc.date) <= deadlineDate;
+  });
+  const totalSafePipeline = safeIncome.reduce((acc, inc) => acc + inc.amount, 0);
 
-  // Daily "Jail" (Money to lock away daily for deadlines)
-  const dailyRepaymentJail = MONTHLY_REPAYMENT_TOTAL / daysTo13th;
-  const dailyRentJail = RENT_AMOUNT / daysToRent;
+  const totalAvailableForDeadline = balance.total + totalSafePipeline;
+  const cashSurplusAfterDebt = totalAvailableForDeadline - MONTHLY_REPAYMENT_TOTAL;
 
-  // Survival budget accounts for current cash + incoming freelance pipeline
-  const totalExpectedIncome = (strategy?.expectedIncome || []).reduce((acc, inc) => acc + inc.amount, 0);
-  const dailySurvivalBudget = Math.max(0, (balance.total + totalExpectedIncome - (MONTHLY_REPAYMENT_TOTAL + RENT_AMOUNT)) / 30);
+  const dailySurvivalBudget = cashSurplusAfterDebt > 0 ? (cashSurplusAfterDebt / daysRemainingTo13th) : 0;
   const remainingSurvivalToday = Math.max(0, dailySurvivalBudget - (strategy?.dailySpent || 0));
 
   const totalDebtBalance = debts.reduce((acc, d) => acc + (d.total - (d.paid || 0)), 0);
@@ -119,6 +119,16 @@ function App() {
     setModalConfig({ show: false, type: '', data: null });
   };
 
+  const handleDeleteSpendItem = async (itemId, amount) => {
+    const newList = strategy.dailySpendsList.filter(item => item.id !== itemId);
+    await updateStrategy({ dailySpent: strategy.dailySpent - amount, dailySpendsList: newList });
+  };
+
+  const handleDeleteIncomeItem = async (itemId) => {
+    const newList = strategy.expectedIncome.filter(item => item.id !== itemId);
+    await updateStrategy({ expectedIncome: newList });
+  };
+
   const handleSaveEntry = async () => {
     if (!input.trim()) return;
     await addEntry(input);
@@ -126,9 +136,15 @@ function App() {
     setActiveTab('history');
   };
 
+  // RESTORED FILTER LOGIC
   const filteredEntries = entries.filter(entry => {
     const matchesSearch = entry.content.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    let matchesDate = true;
+    if (filterDate && entry.createdAt?.toDate) {
+      const entryDate = entry.createdAt.toDate().toISOString().split('T')[0];
+      matchesDate = entryDate === filterDate;
+    }
+    return matchesSearch && matchesDate;
   });
 
   return (
@@ -138,9 +154,9 @@ function App() {
           <div className="modal-content fade-in">
             <div className="modal-header"><h3>{modalConfig.type}</h3><button onClick={() => setModalConfig({show:false})} className="close-btn"><X size={20} /></button></div>
             <div className="modal-body">
-              <input type={['addIncome', 'logSpend', 'newDebt'].includes(modalConfig.type) ? 'text' : 'number'} placeholder="Name / Amount" value={modalInput.val1} onChange={(e) => setModalInput({...modalInput, val1: e.target.value})} />
-              {['addIncome', 'logSpend', 'newDebt'].includes(modalConfig.type) && <input type="number" placeholder="₹ Amount" value={modalInput.val2} onChange={(e) => setModalInput({...modalInput, val2: e.target.value})} style={{marginTop: '12px'}} />}
-              {modalConfig.type === 'addIncome' && <div style={{marginTop: '12px'}}><label className="pill-label">Date:</label><input type="date" value={modalInput.val3} onChange={(e) => setModalInput({...modalInput, val3: e.target.value})} /></div>}
+              <input type={['newDebt', 'addIncome', 'logSpend'].includes(modalConfig.type) ? 'text' : 'number'} placeholder="Label / Name" value={modalInput.val1} onChange={(e) => setModalInput({...modalInput, val1: e.target.value})} />
+              {['newDebt', 'addIncome', 'logSpend'].includes(modalConfig.type) && <input type="number" placeholder="₹ Amount" value={modalInput.val2} onChange={(e) => setModalInput({...modalInput, val2: e.target.value})} style={{marginTop: '12px'}} />}
+              {modalConfig.type === 'addIncome' && <div style={{marginTop: '12px'}}><label className="pill-label">Expected Date:</label><input type="date" value={modalInput.val3} onChange={(e) => setModalInput({...modalInput, val3: e.target.value})} /></div>}
             </div>
             <button className="primary-btn" onClick={handleModalSubmit} style={{marginTop: '20px'}}>Confirm</button>
           </div>
@@ -149,27 +165,40 @@ function App() {
 
       <header className="main-header">
         <h1>Journal<span>Me</span></h1>
-        <div className="date-pill">13th Due: {daysTo13th}d</div>
+        <div className="date-pill">Due in {daysRemainingTo13th}d</div>
       </header>
 
       <main>
         {activeTab === 'journal' && (
           <section className="screen fade-in">
             <div className="card">
-              <label className="input-label" style={{display: 'block', marginBottom: '16px', fontWeight: '600'}}>Moderation is the key...</label>
+              <label className="input-label" style={{display: 'block', marginBottom: '16px', fontWeight: '600'}}>Practice moderation today...</label>
               <textarea value={input} onChange={(e) => setInput(e.target.value)} placeholder="What's on your mind?" />
               <button onClick={handleSaveEntry} className="primary-btn"><PenLine size={20} /> Save Reflection</button>
             </div>
           </section>
         )}
 
+        {/* RESTORED HISTORY UI SECTION */}
         {activeTab === 'history' && (
           <section className="screen fade-in">
-            <div className="section-header-row"><h3 className="section-title">History</h3><span className="pill">{filteredEntries.length}</span></div>
-            <input type="text" placeholder="Search..." className="search-input" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{marginBottom:'20px'}}/>
+            <div className="section-header-row"><h3 className="section-title">Recent Reflections</h3><span className="pill">{filteredEntries.length} Entries</span></div>
+            <div className="filter-group" style={{display:'flex', gap:'10px', marginBottom:'20px'}}>
+              <div className="search-box" style={{flex:2, position:'relative'}}>
+                <Search size={18} style={{position:'absolute', left:'12px', top:'50%', transform:'translateY(-50%)', color:'#94a3b8'}} />
+                <input type="text" placeholder="Search thoughts..." className="search-input" style={{paddingLeft:'40px', width:'100%'}} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              </div>
+              <div className="calendar-box" style={{flex:1}}><input type="date" className="date-filter-input" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} style={{width:'100%'}}/></div>
+            </div>
             <div className="entries-list">
-              {filteredEntries.map(entry => (
-                <div key={entry.id} className="card entry-card"><p>{entry.content}</p><span className="entry-date" style={{fontSize:'0.75rem', color:'#64748b'}}>{formatEntryDate(entry.createdAt)}</span></div>
+              {loading ? <p className="status-msg">Gathering thoughts...</p> : filteredEntries.map(entry => (
+                <div key={entry.id} className="card entry-card">
+                  <p className="entry-content">{entry.content}</p>
+                  <div className="entry-footer" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'12px'}}>
+                    <span className="entry-date" style={{fontSize:'0.75rem', color:'#64748b'}}>{formatEntryDate(entry.createdAt)}</span>
+                    <button onClick={() => deleteEntry(entry.id)} className="delete-text-btn" style={{color:'#ef4444', background:'none', border:'none', fontWeight:'600'}}>Delete</button>
+                  </div>
+                </div>
               ))}
             </div>
           </section>
@@ -197,30 +226,32 @@ function App() {
             <div className="card strategy-card">
               <div className="jail-grid" style={{display:'flex', justifyContent:'space-between', background:'#f8fafc', padding:'12px', borderRadius:'12px', marginBottom:'20px', border:'1px solid #e2e8f0'}}>
                 <div className="jail-item" style={{textAlign:'center', flex:1}}>
-                  <span className="strat-label">Repayment Jail</span>
-                  <p className="strat-value text-danger" style={{fontWeight:'800'}}>₹{Math.ceil(dailyRepaymentJail).toLocaleString('en-IN')}</p>
-                  <small style={{fontSize:'0.6rem'}}>Until 13th</small>
+                  <span className="strat-label">Repayment Due</span>
+                  <p className="strat-value text-danger" style={{fontWeight:'800'}}>₹{MONTHLY_REPAYMENT_TOTAL.toLocaleString('en-IN')}</p>
+                  <small style={{fontSize:'0.6rem'}}>On 13th Jan</small>
                 </div>
                 <div style={{width:'1px', background:'#e2e8f0'}}></div>
                 <div className="jail-item" style={{textAlign:'center', flex:1}}>
-                  <span className="strat-label">Rent Jail</span>
-                  <p className="strat-value text-primary" style={{fontWeight:'800'}}>₹{Math.ceil(dailyRentJail).toLocaleString('en-IN')}</p>
-                  <small style={{fontSize:'0.6rem'}}>Until 1st</small>
+                  <span className="strat-label">Days Left</span>
+                  <p className="strat-value text-primary" style={{fontWeight:'800'}}>{daysRemainingTo13th}</p>
+                  <small style={{fontSize:'0.6rem'}}>Until 13th</small>
                 </div>
               </div>
 
               <div className="survival-hero" style={{textAlign:'center', marginBottom:'24px'}}>
                 <span className="pill-label">Survival Limit Today</span>
-                <h1 style={{fontSize:'2.5rem', fontWeight:'900', color:'#10b981'}}>₹{Math.floor(remainingSurvivalToday).toLocaleString('en-IN')}</h1>
+                <h1 style={{fontSize:'2.5rem', fontWeight:'900', color: cashSurplusAfterDebt > 0 ? '#10b981' : '#ef4444'}}>
+                    ₹{Math.floor(remainingSurvivalToday).toLocaleString('en-IN')}
+                </h1>
               </div>
 
               <div className="income-pipeline-section">
-                <div className="pipeline-header"><span className="pill-label">Income Pipeline</span><strong className="text-success">+₹{totalExpectedIncome.toLocaleString('en-IN')}</strong></div>
+                <div className="pipeline-header"><span className="pill-label">Income Pipeline (Before 13th)</span><strong className="text-success">+₹{totalSafePipeline.toLocaleString('en-IN')}</strong></div>
                 <div className="pipeline-list">
-                  {(strategy?.expectedIncome || []).map((inc) => (
+                  {safeIncome.map((inc) => (
                     <div key={inc.id} style={{display:'flex', justifyContent:'space-between', fontSize:'0.75rem', marginBottom:'4px'}}>
-                      <span>{inc.label} ({formatPipelineDate(inc.date)})</span>
-                      <strong>₹{inc.amount.toLocaleString('en-IN')}</strong>
+                      <div className="item-info"><Clock size={12} style={{marginRight:'4px'}}/><span>{inc.label} ({formatPipelineDate(inc.date)})</span></div>
+                      <div className="item-actions"><strong>₹{inc.amount.toLocaleString('en-IN')}</strong><button onClick={() => handleDeleteIncomeItem(inc.id)} className="item-del-btn" style={{background:'none', border:'none', marginLeft:'4px'}}><X size={12}/></button></div>
                     </div>
                   ))}
                 </div>
@@ -234,7 +265,8 @@ function App() {
                 </div>
                 {strategy.dailySpendsList?.map((item) => (
                     <div key={item.id} style={{display:'flex', justifyContent:'space-between', fontSize:'0.8rem', padding:'4px 0'}}>
-                      <span>{item.label}</span><strong>₹{item.amount}</strong>
+                      <div className="item-info"><ReceiptText size={14} style={{marginRight:'4px'}}/><span>{item.label}</span></div>
+                      <div className="item-actions"><strong>₹{item.amount}</strong><button onClick={() => handleDeleteSpendItem(item.id, item.amount)} className="item-del-btn" style={{background:'none', border:'none', marginLeft:'4px'}}><X size={12}/></button></div>
                     </div>
                 ))}
                 <button className="log-action-btn" onClick={() => openModal('logSpend')} style={{marginTop:'10px'}}><Plus size={14} /> Log Spend</button>
@@ -242,7 +274,10 @@ function App() {
               <button className="mini-action-btn" onClick={() => updateStrategy({ dailySpent: 0, dailySpendsList: [] })} style={{marginTop:'10px', width:'100%'}}>Reset Day</button>
             </div>
 
-            <h3 className="section-title" style={{marginTop:'24px'}}>Active Debts</h3>
+            <div className="section-header-row" style={{marginTop:'24px', display:'flex', justifyContent:'space-between'}}>
+                <h3>Active Debts</h3>
+                <button onClick={() => openModal('newDebt')} className="add-debt-btn"><Plus size={16}/> Add New Tracker</button>
+            </div>
             <div className="debt-stack">
               {debts.map(debt => (
                 <div key={debt.id} className="card debt-item-card" onClick={() => openModal('payment', debt)}>
@@ -252,7 +287,6 @@ function App() {
                   </div>
                 </div>
               ))}
-              <button onClick={() => openModal('newDebt')} className="add-debt-btn" style={{width:'100%', marginTop:'10px'}}><Plus size={16}/> Add New Tracker</button>
             </div>
           </section>
         )}

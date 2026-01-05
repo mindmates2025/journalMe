@@ -234,12 +234,16 @@ function App() {
           className="date-filter-input safari-date-fix" 
           value={filterDate} 
           onChange={(e) => setFilterDate(e.target.value)} 
+          placeholder="Filter Date"
+          required
           style={{ 
             width: '100%', 
             paddingRight: filterDate ? '35px' : '10px',
             appearance: 'none', // Force Safari to allow custom styling
             WebkitAppearance: 'none',
-            minHeight: '40px'
+            minHeight: '40px',
+            color: '#1e293b', // Explicitly set color for Safari
+            backgroundColor: '#f1f5f9' // Explicitly set background
           }}
         />
         {/* Manual Reset Button for Safari/Mobile users */}

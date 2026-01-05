@@ -8,16 +8,23 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'My iOS App',
-        short_name: 'iOSApp',
-        description: 'My awesome Firebase PWA',
-        theme_color: '#ffffff',
+        name: 'JournalMe',
+        short_name: 'JournalMe',
+        description: 'Journaling with Stoic Discipline',
+        theme_color: '#7c3aed', // Your purple theme color
         icons: [
-          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'apple touch icon' }
+          {
+            src: 'favicon.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: 'favicon.png',
+            sizes: '512x512',
+            type: 'image/png'
+          }
         ]
       }
     })
   ]
-});
+})

@@ -1,4 +1,4 @@
-/* --- 1. THE FOUNDATION (The absolute fix for side-collapse) --- */
+/* --- 1. THE FOUNDATION --- */
 * {
   margin: 0;
   padding: 0;
@@ -16,47 +16,44 @@
   --danger: #ef4444;
 }
 
-/* Force the body to act as a centering container */
 body {
   margin: 0;
   width: 100%;
   min-height: 100vh;
-  display: flex !important; /* Forces layout mode */
-  justify-content: center !important; /* Centers horizontally */
+  display: flex !important;
+  justify-content: center !important;
   background-color: var(--bg-app);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: var(--text-main);
 }
 
-/* Ensure Vite's #root doesn't break centering */
 #root {
   width: 100%;
   display: flex;
   justify-content: center;
 }
 
-/* --- 2. THE APP CONTAINER (Centered & Constrained) --- */
+/* --- 2. THE APP CONTAINER --- */
 .app-container {
   width: 100%;
-  max-width: 480px; /* Standard mobile app width */
+  max-width: 480px; 
   min-height: 100vh;
-  padding: 24px 24px 100px 24px; /* Bottom padding for nav */
+  padding: 24px 24px 100px 24px;
   display: flex;
   flex-direction: column;
   background-color: var(--bg-app);
   position: relative;
 }
 
-/* --- 3. YOUR ORIGINAL CLEAN UI STYLES --- */
+/* --- 3. UI STYLES & IPHONE INPUT FIX --- */
 .main-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  /* Force a constant height so it never jumps */
   height: 60px; 
   margin-bottom: 32px;
   width: 100%;
-  flex-shrink: 0; /* Prevents the header from being compressed */
+  flex-shrink: 0;
 }
 
 .main-header h1 {
@@ -67,13 +64,35 @@ body {
 
 .main-header h1 span { color: var(--primary); }
 
-.date-pill {
-  background: var(--bg-card);
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+/* CRITICAL FIX: Forces dark text on iPhone/iOS */
+textarea, 
+input,
+.search-input,
+.date-filter-input {
+  width: 100%;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background-color: #f1f5f9 !important;
+  font-family: inherit;
+  font-size: 1rem;
+  display: block;
+  /* iPhone specific text overrides */
+  color: #1e293b !important; 
+  -webkit-text-fill-color: #1e293b !important; 
+  opacity: 1;
+}
+
+textarea {
+  height: 180px;
+  resize: none;
+  margin-bottom: 20px;
+}
+
+textarea::placeholder,
+input::placeholder {
+  color: #94a3b8 !important;
+  -webkit-text-fill-color: #94a3b8 !important;
 }
 
 .card {
@@ -84,20 +103,6 @@ body {
   margin-bottom: 24px;
   border: 1px solid var(--border);
   width: 100%;
-}
-
-textarea {
-  width: 100%;
-  height: 180px;
-  padding: 16px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  background: #f1f5f9;
-  font-family: inherit;
-  font-size: 1rem;
-  resize: none;
-  margin-bottom: 20px;
-  display: block;
 }
 
 .primary-btn {
@@ -115,7 +120,7 @@ textarea {
   gap: 10px;
 }
 
-/* --- 4. NAVIGATION BAR (Fixed to App Container) --- */
+/* --- 4. NAVIGATION BAR --- */
 .bottom-nav {
   position: fixed;
   bottom: 0;
@@ -163,28 +168,9 @@ textarea {
 }
 
 .search-box { flex: 2; position: relative; display: flex; align-items: center; }
-.search-input {
-  width: 100%;
-  padding: 12px 12px 12px 38px !important;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-}
-
 .calendar-box { flex: 1.2; position: relative; }
-.date-filter-input {
-  width: 100%;
-  height: 48px;
-  padding: 0 12px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: white !important;
-  -webkit-appearance: none;
-}
-
 
 /* --- 6. PREMIUM FINANCE (BANK) SECTION --- */
-
-/* Balance Hero Card */
 .bank-hero-card {
   background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
   border-radius: 28px;
@@ -195,23 +181,6 @@ textarea {
   box-shadow: 0 20px 25px -5px rgba(139, 92, 246, 0.25);
   margin-bottom: 32px;
   cursor: pointer;
-  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.bank-hero-card:active {
-  transform: scale(0.96);
-}
-
-.hero-content {
-  position: relative;
-  z-index: 2;
-}
-
-.hero-label {
-  font-size: 0.9rem;
-  font-weight: 500;
-  opacity: 0.9;
-  margin-bottom: 8px;
 }
 
 .hero-amount {
@@ -232,7 +201,6 @@ textarea {
   z-index: 1;
 }
 
-/* Debt Item Styling */
 .debt-item-card {
   position: relative;
   padding: 20px !important;
@@ -248,12 +216,6 @@ textarea {
   margin-bottom: 16px;
 }
 
-.debt-name {
-  font-weight: 700;
-  color: var(--text-main);
-  font-size: 1rem;
-}
-
 .debt-remaining-tag {
   background: #fef2f2;
   color: var(--danger);
@@ -263,7 +225,6 @@ textarea {
   font-weight: 700;
 }
 
-/* Progress Bar Logic */
 .progress-container {
   width: 100%;
   height: 10px;
@@ -277,7 +238,7 @@ textarea {
   height: 100%;
   background: var(--primary);
   border-radius: 6px;
-  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.8s ease;
 }
 
 .debt-stats {
@@ -286,23 +247,6 @@ textarea {
   font-size: 0.75rem;
   color: var(--text-muted);
   font-weight: 600;
-}
-
-/* Icons and Controls */
-.debt-delete-icon {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: transparent;
-  border: none;
-  color: #cbd5e1;
-  cursor: pointer;
-  padding: 5px;
-  transition: color 0.2s;
-}
-
-.debt-delete-icon:hover {
-  color: var(--danger);
 }
 
 .add-debt-btn {
@@ -318,19 +262,5 @@ textarea {
   font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
-  width: fit-content;
   margin: 0 auto;
-  transition: all 0.2s;
-}
-
-.add-debt-btn:active {
-  background: var(--primary);
-  color: white;
-}
-
-.empty-finance {
-  text-align: center;
-  padding: 40px;
-  color: var(--text-muted);
-  font-style: italic;
 }

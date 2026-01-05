@@ -45,6 +45,7 @@ body {
   flex-direction: column;
   background-color: var(--bg-app);
   position: relative;
+  touch-action: manipulation;
 }
 
 /* --- 3. UI STYLES --- */
@@ -76,11 +77,12 @@ textarea, input {
   border: 1px solid var(--border);
   background-color: #f1f5f9 !important;
   font-family: inherit;
-  font-size: 1rem;
+  font-size: 16px !important;
   color: #1e293b !important; 
   -webkit-text-fill-color: #1e293b !important; 
-  -webkit-user-select: text;
-  user-select: text;
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  cursor: text;
   touch-action: manipulation;
 }
 

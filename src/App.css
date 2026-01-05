@@ -52,14 +52,17 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  /* Force a constant height so it never jumps */
+  height: 60px; 
   margin-bottom: 32px;
   width: 100%;
+  flex-shrink: 0; /* Prevents the header from being compressed */
 }
 
 .main-header h1 {
   font-size: 1.75rem;
-  font-weight: 800;
-  letter-spacing: -0.025em;
+  line-height: 1;
+  margin: 0;
 }
 
 .main-header h1 span { color: var(--primary); }
@@ -176,4 +179,158 @@ textarea {
   border: 1px solid var(--border);
   background: white !important;
   -webkit-appearance: none;
+}
+
+
+/* --- 6. PREMIUM FINANCE (BANK) SECTION --- */
+
+/* Balance Hero Card */
+.bank-hero-card {
+  background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
+  border-radius: 28px;
+  padding: 32px 24px;
+  color: white;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 20px 25px -5px rgba(139, 92, 246, 0.25);
+  margin-bottom: 32px;
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.bank-hero-card:active {
+  transform: scale(0.96);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+}
+
+.hero-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  opacity: 0.9;
+  margin-bottom: 8px;
+}
+
+.hero-amount {
+  font-size: 2.5rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.hero-accent-circle {
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  width: 140px;
+  height: 140px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  z-index: 1;
+}
+
+/* Debt Item Styling */
+.debt-item-card {
+  position: relative;
+  padding: 20px !important;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.debt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.debt-name {
+  font-weight: 700;
+  color: var(--text-main);
+  font-size: 1rem;
+}
+
+.debt-remaining-tag {
+  background: #fef2f2;
+  color: var(--danger);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* Progress Bar Logic */
+.progress-container {
+  width: 100%;
+  height: 10px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 6px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.debt-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Icons and Controls */
+.debt-delete-icon {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: #cbd5e1;
+  cursor: pointer;
+  padding: 5px;
+  transition: color 0.2s;
+}
+
+.debt-delete-icon:hover {
+  color: var(--danger);
+}
+
+.add-debt-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: white;
+  border: 1.5px solid var(--primary);
+  color: var(--primary);
+  padding: 8px 16px;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  width: fit-content;
+  margin: 0 auto;
+  transition: all 0.2s;
+}
+
+.add-debt-btn:active {
+  background: var(--primary);
+  color: white;
+}
+
+.empty-finance {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-muted);
+  font-style: italic;
 }

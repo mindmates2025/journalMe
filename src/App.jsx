@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { 
   addEntry, deleteEntry, 
   addTask, subscribeToEntries, subscribeToTasks,
-  // --- ADDED FINANCE IMPORTS ---
   subscribeToBalance, subscribeToDebts, updateBalance, updateDebtPayment, addDebt, deleteDebt
 } from './journalService';
 import { PenLine, BookOpen, CheckCircle2, Wallet, Trash2, Plus, Search, CheckCheck, CloudOff, PlusCircle } from 'lucide-react';
@@ -27,7 +26,6 @@ function App() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // --- FINANCE STATES ---
   const [balance, setBalance] = useState({ total: 0 });
   const [debts, setDebts] = useState([]);
 
@@ -38,15 +36,11 @@ function App() {
 
   useEffect(() => {
     setLoading(true);
-    
-    // Subscriptions
     const unsubEntries = subscribeToEntries((data) => {
       setEntries(data);
       setLoading(false); 
     });
     const unsubTasks = subscribeToTasks((data) => setTasks(data));
-    
-    // --- FINANCE SUBSCRIPTIONS ---
     const unsubBalance = subscribeToBalance((data) => setBalance(data));
     const unsubDebts = subscribeToDebts((data) => setDebts(data));
 
@@ -58,7 +52,6 @@ function App() {
     };
   }, []);
 
-  // --- FINANCE ACTIONS ---
   const handleEditBalance = async () => {
     const newAmt = prompt("Enter new current balance:", balance.total);
     if (newAmt !== null && !isNaN(newAmt)) {
@@ -82,13 +75,13 @@ function App() {
         label,
         total: Number(total),
         paid: 0,
-        amount: Number(total) // Initial remaining amount
+        amount: Number(total)
       });
     }
   };
 
   const handleDeleteDebt = async (e, id) => {
-    e.stopPropagation(); // Prevents triggering payment prompt
+    e.stopPropagation(); 
     if (window.confirm("Remove this debt tracker?")) {
       await deleteDebt(id);
     }
@@ -119,6 +112,7 @@ function App() {
 
   return (
     <div className="app-container">
+      {/* CONSTANT HEADER */}
       <header className="main-header">
         <h1>Journal<span>Me</span></h1>
         <div className="date-pill">
@@ -198,45 +192,57 @@ function App() {
           </section>
         )}
 
-        {/* --- DYNAMIC BANK SCREEN --- */}
+        {/* --- REFINED FINANCE SECTION --- */}
         {activeTab === 'bank' && (
           <section className="screen fade-in">
-            <div className="card bank-hero" onClick={handleEditBalance}>
-              <p className="bank-label">Total Balance (Tap to edit)</p>
-              <h2 className="balance-amount">₹{balance.total.toLocaleString('en-IN')}</h2>
+            <div className="bank-hero-card" onClick={handleEditBalance}>
+              <div className="hero-content">
+                <p className="hero-label">Available Balance</p>
+                <h2 className="hero-amount">₹{balance.total.toLocaleString('en-IN')}</h2>
+              </div>
+              <div className="hero-accent-circle"></div>
             </div>
-            
+
             <div className="section-header-row">
-              <h3 className="section-title">Debt Tracker</h3>
-              <button onClick={handleAddNewDebt} className="icon-btn-text">
-                <PlusCircle size={20} /> Add Debt
+              <h3 className="section-title">Debt Progress</h3>
+              <button className="add-debt-btn" onClick={handleAddNewDebt}>
+                <Plus size={18} /> Add
               </button>
             </div>
 
             <div className="debt-stack">
               {debts.length === 0 ? (
-                <div className="empty-state">
-                  <p>No debts tracked yet.</p>
+                <div className="card empty-state">
+                  <p>No debts currently tracked.</p>
                 </div>
               ) : (
                 debts.map(debt => (
-                  <div key={debt.id} className="card debt-card" onClick={() => handleLogPayment(debt)}>
-                    <div className="debt-info">
-                      <span>{debt.label}</span>
-                      <div className="debt-actions">
-                        <strong>₹{(debt.total - debt.paid).toLocaleString('en-IN')}</strong>
-                        <button className="delete-icon-btn" onClick={(e) => handleDeleteDebt(e, debt.id)}>
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+                  <div key={debt.id} className="card debt-item-card" onClick={() => handleLogPayment(debt)}>
+                    <div className="debt-header">
+                      <span className="debt-name">{debt.label}</span>
+                      <span className="debt-remaining-tag">
+                        ₹{(debt.total - debt.paid).toLocaleString('en-IN')} left
+                      </span>
                     </div>
-                    <div className="progress-bar-bg">
+                    
+                    <div className="progress-container">
                       <div 
-                        className="progress-fill" 
+                        className="progress-bar-fill" 
                         style={{ width: `${Math.min((debt.paid / debt.total) * 100, 100)}%` }}
                       ></div>
                     </div>
-                    <p className="debt-helper">Tap to log payment • ₹{debt.paid.toLocaleString('en-IN')} paid</p>
+
+                    <div className="debt-stats">
+                      <span className="stat-label">Paid: ₹{debt.paid.toLocaleString('en-IN')}</span>
+                      <span className="stat-label">Goal: ₹{debt.total.toLocaleString('en-IN')}</span>
+                    </div>
+
+                    <button 
+                      className="debt-delete-icon" 
+                      onClick={(e) => handleDeleteDebt(e, debt.id)}
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 ))
               )}

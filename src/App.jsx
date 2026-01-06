@@ -156,6 +156,21 @@ function App() {
     setActiveTab('history');
   };
 
+  // Add these handlers to your App.jsx
+const handleAddTask = async (label) => {
+  if (!label.trim()) return;
+  await addTask({ 
+    label, 
+    completed: false, 
+    category: 'discipline', // or 'exam' / 'work'
+    createdAt: new Date() 
+  });
+};
+
+const handleToggleTask = async (task) => {
+  await updateTask(task.id, { completed: !task.completed });
+};
+
   const filteredEntries = entries.filter(entry => entry.content.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
@@ -281,11 +296,73 @@ function App() {
   </section>
 )}
         {activeTab === 'todo' && (
-          <section className="screen fade-in">
-             <h3 className="section-title">Daily Tasks</h3>
-             <div className="card empty-state"><p>No tasks for today. Stay focused!</p></div>
-          </section>
-        )}
+  <section className="screen fade-in">
+    <div className="section-header-row">
+      <h3 className="section-title">Daily Discipline</h3>
+      <span className="pill">{tasks.filter(t => !t.completed).length} Pending</span>
+    </div>
+
+    <div className="card task-input-card" style={{ marginBottom: '20px', padding: '16px' }}>
+      <div style={{ display: 'flex', gap: '10px' }}>
+        <input 
+          type="text" 
+          placeholder="New discipline..." 
+          className="search-input" 
+          onKeyDown={(e) => e.key === 'Enter' && (handleAddTask(e.target.value), e.target.value = '')}
+          onTouchEnd={(e) => e.currentTarget.focus()}
+          style={{ flex: 1, padding: '12px' }}
+        />
+        <button className="primary-btn" style={{ width: '50px', borderRadius: '12px' }}>
+          <Plus size={20} />
+        </button>
+      </div>
+    </div>
+
+    <div className="task-list">
+      {tasks.length === 0 ? (
+        <div className="card empty-state" style={{ textAlign: 'center', padding: '40px' }}>
+          <Target size={40} style={{ color: '#cbd5e1', marginBottom: '12px' }} />
+          <p style={{ color: '#64748b' }}>No tasks. Set your intention for today.</p>
+        </div>
+      ) : (
+        tasks.map(task => (
+          <div 
+            key={task.id} 
+            className={`card task-card ${task.completed ? 'completed' : ''}`}
+            onClick={() => handleToggleTask(task)}
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '15px', 
+              padding: '16px', 
+              marginBottom: '12px',
+              opacity: task.completed ? 0.6 : 1,
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <div className={`check-circle ${task.completed ? 'checked' : ''}`}>
+              {task.completed && <CheckCheck size={14} color="white" />}
+            </div>
+            <span style={{ 
+              flex: 1, 
+              fontSize: '0.95rem', 
+              textDecoration: task.completed ? 'line-through' : 'none',
+              fontWeight: task.completed ? '400' : '600'
+            }}>
+              {task.label}
+            </span>
+            <button 
+              onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }} 
+              style={{ background: 'none', border: 'none', color: '#94a3b8' }}
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        ))
+      )}
+    </div>
+  </section>
+)}
 
         {activeTab === 'bank' && (
           <section className="screen fade-in">

@@ -15,7 +15,7 @@ jobs:
         run: npm ci && npm run build
         env:
           # This maps your GitHub Secret to a variable Vite can see
-          VITE_OPENROUTER_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          VITE_OPENROUTER_KEY: ${{ secrets.VITE_OPENROUTER_KEY }}
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

@@ -555,3 +555,31 @@ input::placeholder {
   pointer-events: none;
   transition: all 0.3s ease;
 }
+
+/* --- Add/Update this in your App.css --- */
+.action-icon-btn {
+  background: transparent !important; /* Forces the background to be clear */
+  border: none;                      /* Removes the default button border */
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+/* These classes ensure the Lucide icons show their specific colors */
+.action-icon-btn.text-success { color: #10b981; } /* Clear (Check icon) */
+.action-icon-btn.text-primary { color: #6366f1; } /* Edit (Pencil icon) */
+.action-icon-btn.text-danger { color: #ef4444; }  /* Delete (Trash icon) */
+
+.action-icon-btn:hover {
+  background: rgba(0, 0, 0, 0.05) !important; /* Subtle gray highlight on hover */
+}
+
+.action-icon-btn:active {
+  transform: scale(0.9);
+}

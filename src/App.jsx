@@ -9,7 +9,7 @@ import {
 import { 
   PenLine, BookOpen, CheckCircle2, Wallet, Trash2, Plus, Search, 
   CheckCheck, Target, X, TrendingUp, ReceiptText, Clock, RotateCcw, 
-  Sparkles, RefreshCw 
+  Sparkles, RefreshCw, Edit2, Check 
 } from 'lucide-react';
 import './App.css';
 
@@ -84,11 +84,13 @@ function App() {
   const rentDeadlineDate = new Date(now.getFullYear(), now.getMonth(), RENT_DAY);
   const repaymentDeadlineDate = new Date(now.getFullYear(), now.getMonth(), REPAYMENT_DAY);
 
-  const incomeBefore11th = (strategy?.expectedIncome || []).filter(inc => inc.date && new Date(inc.date) <= rentDeadlineDate);
+  // Split Logic for Income
   const incomeBefore13th = (strategy?.expectedIncome || []).filter(inc => inc.date && new Date(inc.date) <= repaymentDeadlineDate);
-  const totalSafePipeline = incomeBefore13th.reduce((acc, inc) => acc + inc.amount, 0);
+  const incomeAfter13th = (strategy?.expectedIncome || []).filter(inc => inc.date && new Date(inc.date) > repaymentDeadlineDate);
+  
+  const totalSafePipeline = incomeBefore13th.reduce((acc, inc) => acc + Number(inc.amount), 0);
 
-  const surplus11th = balance.total + incomeBefore11th.reduce((acc, inc) => acc + inc.amount, 0) - RENT_AMOUNT;
+  const surplus11th = balance.total + (strategy?.expectedIncome || []).filter(inc => inc.date && new Date(inc.date) <= rentDeadlineDate).reduce((acc, inc) => acc + Number(inc.amount), 0) - RENT_AMOUNT;
   const surplus13th = balance.total + totalSafePipeline - RENT_AMOUNT - MONTHLY_REPAYMENT_TOTAL;
   const isLiquidityShort = surplus11th < 0 || surplus13th < 0;
   
@@ -97,6 +99,7 @@ function App() {
   const totalDebtBalance = debts.reduce((acc, d) => acc + (d.total - (d.paid || 0)), 0);
   const netPosition = balance.total - totalDebtBalance;
 
+  // --- HANDLERS ---
   const handleSaveEntry = async () => {
     if (!input.trim()) return;
     await addEntry(input);
@@ -126,24 +129,14 @@ function App() {
         survivalBudget: remainingSurvivalToday,
         recentEntries: entries.slice(0, 3).map(e => e.content),
       };
-
       const aiTasks = await generateAIPlan(contextData);
-
-      // SAFETY: Ensure aiTasks is a valid array before iterating
       if (aiTasks && Array.isArray(aiTasks)) {
         for (const taskLabel of aiTasks) {
-          await addTask({
-            label: taskLabel,
-            completed: false,
-            category: 'ai-generated'
-          });
+          await addTask({ label: taskLabel, completed: false, category: 'ai-generated' });
         }
-      } else {
-        console.error("AI Response was not a valid list:", aiTasks);
       }
     } catch (error) {
       console.error("AI Generation failed:", error);
-      alert("AI was unable to generate a plan. Check your service console.");
     } finally {
       setIsAiLoading(false);
     }
@@ -158,9 +151,27 @@ function App() {
     await updateBalance(balance.total + amount);
   };
 
+  // --- NEW INCOME MANAGEMENT HANDLERS ---
+  const handleClearIncome = async (incomeId, amount) => {
+    if(!window.confirm(`Add ₹${amount} to Liquid Cash and clear this payment?`)) return;
+    const newList = strategy.expectedIncome.filter(i => i.id !== incomeId);
+    await updateStrategy({ expectedIncome: newList });
+    await updateBalance(balance.total + Number(amount));
+  };
+
+  const handleDeleteIncome = async (incomeId) => {
+    if(!window.confirm("Remove this expected payment?")) return;
+    const newList = strategy.expectedIncome.filter(i => i.id !== incomeId);
+    await updateStrategy({ expectedIncome: newList });
+  };
+
   const openModal = (type, data = null) => {
     setModalConfig({ show: true, type, data });
-    setModalInput({ val1: '', val2: '', val3: new Date().toISOString().split('T')[0] });
+    if (type === 'editIncome' && data) {
+      setModalInput({ val1: data.label, val2: data.amount, val3: data.date });
+    } else {
+      setModalInput({ val1: '', val2: '', val3: new Date().toISOString().split('T')[0] });
+    }
   };
 
   const handleModalSubmit = async () => {
@@ -185,6 +196,14 @@ function App() {
         expectedIncome: [...(strategy.expectedIncome || []), { label: val1, amount: Number(val2), date: val3, id: Date.now() }] 
       });
     }
+
+    if (type === 'editIncome' && val1 && val2) {
+      const newList = strategy.expectedIncome.map(inc => 
+        inc.id === data.id ? { ...inc, label: val1, amount: Number(val2), date: val3 } : inc
+      );
+      await updateStrategy({ expectedIncome: newList });
+    }
+    
     setModalConfig({ show: false, type: '', data: null });
   };
 
@@ -197,9 +216,9 @@ function App() {
           <div className="modal-content fade-in">
             <div className="modal-header"><h3>{modalConfig.type}</h3><button onClick={() => setModalConfig({show:false})} className="close-btn"><X size={20} /></button></div>
             <div className="modal-body">
-              <input type={['newDebt', 'addIncome', 'logSpend'].includes(modalConfig.type) ? 'text' : 'number'} placeholder="Label / Name" value={modalInput.val1} onChange={(e) => setModalInput({...modalInput, val1: e.target.value})} />
-              {['newDebt', 'addIncome', 'logSpend'].includes(modalConfig.type) && <input type="number" placeholder="₹ Amount" value={modalInput.val2} onChange={(e) => setModalInput({...modalInput, val2: e.target.value})} style={{marginTop: '12px'}} />}
-              {modalConfig.type === 'addIncome' && <div style={{marginTop: '12px'}}><label className="pill-label">Expected Date:</label><input type="date" value={modalInput.val3} onChange={(e) => setModalInput({...modalInput, val3: e.target.value})} /></div>}
+              <input type={['newDebt', 'addIncome', 'logSpend', 'editIncome'].includes(modalConfig.type) ? 'text' : 'number'} placeholder="Label / Name" value={modalInput.val1} onChange={(e) => setModalInput({...modalInput, val1: e.target.value})} />
+              {['newDebt', 'addIncome', 'logSpend', 'editIncome'].includes(modalConfig.type) && <input type="number" placeholder="₹ Amount" value={modalInput.val2} onChange={(e) => setModalInput({...modalInput, val2: e.target.value})} style={{marginTop: '12px'}} />}
+              {['addIncome', 'editIncome'].includes(modalConfig.type) && <div style={{marginTop: '12px'}}><label className="pill-label">Date:</label><input type="date" value={modalInput.val3} onChange={(e) => setModalInput({...modalInput, val3: e.target.value})} /></div>}
             </div>
             <button className="primary-btn" onClick={handleModalSubmit} style={{marginTop: '20px'}}>Confirm</button>
           </div>
@@ -252,17 +271,7 @@ function App() {
           <section className="screen fade-in">
             <div className="section-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 className="section-title">Daily Discipline</h3>
-              <button 
-                onClick={handleGenerateAiPlan} 
-                disabled={isAiLoading}
-                className="ai-plan-btn"
-                style={{
-                  background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
-                  color: 'white', border: 'none', padding: '10px 18px', borderRadius: '14px',
-                  display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '700', fontSize: '0.85rem',
-                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)', cursor: isAiLoading ? 'wait' : 'pointer'
-                }}
-              >
+              <button onClick={handleGenerateAiPlan} disabled={isAiLoading} className="ai-plan-btn" style={{ background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '14px', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '700', fontSize: '0.85rem', boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)', cursor: isAiLoading ? 'wait' : 'pointer' }}>
                 {isAiLoading ? <RefreshCw className="spin" size={16} /> : <Sparkles size={16} />}
                 {isAiLoading ? "Planning..." : "AI Plan"}
               </button>
@@ -279,11 +288,7 @@ function App() {
                   <div className={`check-circle ${task.completed ? 'checked' : ''}`} style={{ width: '24px', height: '24px', borderRadius: '50%', border: task.completed ? 'none' : '2px solid #cbd5e1', background: task.completed ? '#10b981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {task.completed && <CheckCheck size={14} color="white" />}
                   </div>
-                  {/* Added a small Sparkle icon for AI-generated tasks to help distinguish them */}
-                  <span style={{ flex: 1, textDecoration: task.completed ? 'line-through' : 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {task.category === 'ai-generated' && <Sparkles size={14} color="#8b5cf6" />}
-                    {task.label}
-                  </span>
+                  <span style={{ flex: 1, textDecoration: task.completed ? 'line-through' : 'none' }}>{task.label}</span>
                   <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} style={{ background: 'none', border: 'none', color: '#fca5a5' }}><Trash2 size={18} /></button>
                 </div>
               ))}
@@ -292,75 +297,122 @@ function App() {
         )}
 
         {activeTab === 'bank' && (
-          <section className="screen fade-in">
-            <div className="bank-hero-card" onClick={() => openModal('balance')}>
-              <div className="hero-content">
-                <p className="hero-label">Net Financial Position</p>
-                <h2 className="hero-amount">₹{netPosition.toLocaleString('en-IN')}</h2>
-                <p className="hero-subtitle">Liquid Cash: ₹{balance.total.toLocaleString('en-IN')}</p>
+  <section className="screen fade-in">
+    <div className="bank-hero-card" onClick={() => openModal('balance')}>
+      <div className="hero-content">
+        <p className="hero-label">Net Financial Position</p>
+        <h2 className="hero-amount">₹{netPosition.toLocaleString('en-IN')}</h2>
+        <p className="hero-subtitle">Liquid Cash: ₹{balance.total.toLocaleString('en-IN')}</p>
+      </div>
+      <div className="hero-accent-circle"></div>
+    </div>
+
+    {/* --- RESTORED JAIL SECTION --- */}
+    <h3 className="section-title">Liquidity Jails</h3>
+    <div className="card strategy-card" style={{ marginBottom: '16px' }}>
+      <div className="jail-grid" style={{ display: 'flex', justifyContent: 'space-between', background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+        <div className="jail-item" style={{ textAlign: 'center', flex: 1 }}>
+          <span className="strat-label" style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '700' }}>Rent Jail (11th)</span>
+          <p className="strat-value text-primary" style={{ fontWeight: '800', margin: '4px 0 0' }}>₹{Math.ceil(RENT_AMOUNT / daysTo11th).toLocaleString('en-IN')}/d</p>
+        </div>
+        <div style={{ width: '1px', background: '#e2e8f0' }}></div>
+        <div className="jail-item" style={{ textAlign: 'center', flex: 1 }}>
+          <span className="strat-label" style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '700' }}>Installment (13th)</span>
+          <p className="strat-value text-danger" style={{ fontWeight: '800', margin: '4px 0 0' }}>₹{Math.ceil(MONTHLY_REPAYMENT_TOTAL / daysTo13th).toLocaleString('en-IN')}/d</p>
+        </div>
+      </div>
+    </div>
+
+    <h3 className="section-title">Survival Strategy</h3>
+    <div className="card strategy-card">
+      <div className="survival-hero" style={{ textAlign: 'center', marginBottom: '24px' }}>
+        <span className="pill-label">Daily Survival Budget</span>
+        <h1 style={{ fontSize: '2.5rem', fontWeight: '900', color: !isLiquidityShort ? '#10b981' : '#ef4444' }}>
+          ₹{Math.floor(remainingSurvivalToday).toLocaleString('en-IN')}
+        </h1>
+        {isLiquidityShort && <small className="text-danger" style={{ fontWeight: '700' }}>⚠️ Cash Shortage for Jails</small>}
+      </div>
+
+      {/* INCOME PIPELINE - BEFORE 13TH */}
+      <div className="income-pipeline-section">
+        <div className="pipeline-header" style={{ marginBottom: '10px' }}>
+          <span className="pill-label" style={{ background: '#dcfce7', color: '#166534' }}>Safe Pipeline (Before 13th)</span>
+          <strong className="text-success">+₹{totalSafePipeline.toLocaleString('en-IN')}</strong>
+        </div>
+        <div className="pipeline-list">
+          {incomeBefore13th.map((inc) => (
+            <div key={inc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px dashed #e2e8f0' }}>
+              <div className="item-info">
+                <Clock size={12} style={{ marginRight: '4px' }} />
+                <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{inc.label}</span>
+                <div style={{ fontSize: '0.65rem', color: '#64748b' }}>{formatPipelineDate(inc.date)}</div>
               </div>
-              <div className="hero-accent-circle"></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <strong style={{ fontSize: '0.9rem' }}>₹{Number(inc.amount).toLocaleString('en-IN')}</strong>
+                <button onClick={() => handleClearIncome(inc.id, inc.amount)} className="action-icon-btn text-success"><Check size={16} /></button>
+                <button onClick={() => openModal('editIncome', inc)} className="action-icon-btn text-primary"><Edit2 size={14} /></button>
+                <button onClick={() => handleDeleteIncome(inc.id)} className="action-icon-btn text-danger"><Trash2 size={14} /></button>
+              </div>
             </div>
-            <h3 className="section-title">Daily Strategy</h3>
-            <div className="card strategy-card">
-              <div className="jail-grid" style={{display:'flex', justifyContent:'space-between', background:'#f8fafc', padding:'12px', borderRadius:'12px', marginBottom:'20px', border:'1px solid #e2e8f0'}}>
-                <div className="jail-item" style={{textAlign:'center', flex:1}}>
-                  <span className="strat-label">Rent Jail (11th)</span>
-                  <p className="strat-value text-primary" style={{fontWeight:'800'}}>₹{Math.ceil(RENT_AMOUNT / daysTo11th).toLocaleString('en-IN')}</p>
-                </div>
-                <div style={{width:'1px', background:'#e2e8f0'}}></div>
-                <div className="jail-item" style={{textAlign:'center', flex:1}}>
-                  <span className="strat-label">Installment (13th)</span>
-                  <p className="strat-value text-danger" style={{fontWeight:'800'}}>₹{Math.ceil(MONTHLY_REPAYMENT_TOTAL / daysTo13th).toLocaleString('en-IN')}</p>
-                </div>
+          ))}
+        </div>
+      </div>
+
+      {/* INCOME PIPELINE - AFTER 13TH */}
+      <div className="income-pipeline-section" style={{ marginTop: '20px', opacity: 0.8 }}>
+        <div className="pipeline-header" style={{ marginBottom: '10px' }}>
+          <span className="pill-label" style={{ background: '#f1f5f9', color: '#475569' }}>Future Pipeline (After 13th)</span>
+        </div>
+        <div className="pipeline-list">
+          {incomeAfter13th.map((inc) => (
+            <div key={inc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px dashed #e2e8f0' }}>
+              <div className="item-info">
+                <span style={{ fontSize: '0.85rem' }}>{inc.label}</span>
+                <div style={{ fontSize: '0.65rem', color: '#64748b' }}>{formatPipelineDate(inc.date)}</div>
               </div>
-              <div className="survival-hero" style={{textAlign:'center', marginBottom:'24px'}}>
-                <span className="pill-label">Survival Limit Today</span>
-                <h1 style={{fontSize:'2.5rem', fontWeight:'900', color: !isLiquidityShort ? '#10b981' : '#ef4444'}}>₹{Math.floor(remainingSurvivalToday).toLocaleString('en-IN')}</h1>
-                {isLiquidityShort && <small className="text-danger">⚠️ Cash Shortage</small>}
-              </div>
-              <div className="income-pipeline-section">
-                <div className="pipeline-header"><span className="pill-label">Income Pipeline (Before 13th)</span><strong className="text-success">+₹{totalSafePipeline.toLocaleString('en-IN')}</strong></div>
-                <div className="pipeline-list">
-                  {incomeBefore13th.map((inc) => (
-                    <div key={inc.id} style={{display:'flex', justifyContent:'space-between', fontSize:'0.75rem', marginBottom:'4px'}}>
-                      <div className="item-info"><Clock size={12} style={{marginRight:'4px'}}/><span>{inc.label} ({formatPipelineDate(inc.date)})</span></div>
-                      <strong>₹{inc.amount.toLocaleString('en-IN')}</strong>
-                    </div>
-                  ))}
-                </div>
-                <button className="log-action-btn income-btn" onClick={() => openModal('addIncome')}><TrendingUp size={14} /> Expected Payment</button>
-              </div>
-              <div className="spend-sub-section" style={{marginTop:'12px', background:'#f8fafc', padding:'12px', borderRadius:'12px'}}>
-                <div className="spend-meta" style={{display:'flex', justifyContent:'space-between', marginBottom:'10px'}}>
-                   <span>Floor: <strong>₹{Math.floor(dailySurvivalBudget)}</strong></span>
-                   <span>Spent: <strong>₹{strategy.dailySpent}</strong></span>
-                </div>
-                {strategy.dailySpendsList?.map((item) => (
-                    <div key={item.id} style={{display:'flex', justifyContent:'space-between', fontSize:'0.8rem', padding:'4px 0'}}>
-                      <div className="item-info"><ReceiptText size={14} style={{marginRight:'4px'}}/><span>{item.label}</span></div>
-                      <div className="item-actions"><strong>₹{item.amount}</strong><button onClick={() => handleDeleteSpendItem(item.id, item.amount)} style={{marginLeft:'4px', border:'none', background:'none'}}><X size={12}/></button></div>
-                    </div>
-                ))}
-                <button className="log-action-btn" onClick={() => openModal('logSpend')} style={{marginTop:'10px', width: '100%'}}><Plus size={14} /> Log Spend</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <strong style={{ fontSize: '0.9rem' }}>₹{Number(inc.amount).toLocaleString('en-IN')}</strong>
+                <button onClick={() => handleClearIncome(inc.id, inc.amount)} className="action-icon-btn text-success"><Check size={16} /></button>
+                <button onClick={() => openModal('editIncome', inc)} className="action-icon-btn text-primary"><Edit2 size={14} /></button>
+                <button onClick={() => handleDeleteIncome(inc.id)} className="action-icon-btn text-danger"><Trash2 size={14} /></button>
               </div>
             </div>
-            <div className="section-header-row" style={{marginTop:'24px', display:'flex', justifyContent:'space-between'}}>
-                <h3>Active Debts</h3>
-                <button onClick={() => openModal('newDebt')} className="add-debt-btn"><Plus size={16}/> Add New</button>
-            </div>
-            <div className="debt-stack">
-              {debts.map(debt => (
-                <div key={debt.id} className="card debt-item-card" onClick={() => openModal('payment', debt)}>
-                  <div className="debt-header" style={{display:'flex', justifyContent:'space-between'}}><strong>{debt.label}</strong><span>₹{(debt.total - (debt.paid || 0)).toLocaleString('en-IN')} left</span></div>
-                  <div className="progress-container" style={{height:'6px', background:'#f1f5f9', borderRadius:'3px', margin:'10px 0'}}>
-                    <div style={{width:`${((debt.paid || 0) / debt.total) * 100}%`, height:'100%', background:'#8b5cf6', borderRadius:'3px'}}></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
+          ))}
+        </div>
+        <button className="log-action-btn income-btn" onClick={() => openModal('addIncome')} style={{ marginTop: '15px' }}><TrendingUp size={14} /> Expect Payment</button>
+      </div>
+
+      <div className="spend-sub-section" style={{ marginTop: '20px', background: '#f8fafc', padding: '12px', borderRadius: '12px' }}>
+        <div className="spend-meta" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '0.8rem' }}>
+          <span>Daily Floor: <strong>₹{Math.floor(dailySurvivalBudget)}</strong></span>
+          <span>Spent: <strong>₹{strategy.dailySpent}</strong></span>
+        </div>
+        {strategy.dailySpendsList?.map((item) => (
+          <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', padding: '4px 0' }}>
+            <div className="item-info"><ReceiptText size={14} style={{ marginRight: '4px' }} /><span>{item.label}</span></div>
+            <div className="item-actions"><strong>₹{item.amount}</strong><button onClick={() => handleDeleteSpendItem(item.id, item.amount)} style={{ marginLeft: '4px', border: 'none', background: 'none' }}><X size={12} /></button></div>
+          </div>
+        ))}
+        <button className="log-action-btn" onClick={() => openModal('logSpend')} style={{ marginTop: '10px', width: '100%' }}><Plus size={14} /> Log Spend</button>
+      </div>
+    </div>
+
+    <div className="section-header-row" style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between' }}>
+      <h3>Active Debts</h3>
+      <button onClick={() => openModal('newDebt')} className="add-debt-btn"><Plus size={16} /> Add New</button>
+    </div>
+    <div className="debt-stack">
+      {debts.map(debt => (
+        <div key={debt.id} className="card debt-item-card" onClick={() => openModal('payment', debt)}>
+          <div className="debt-header" style={{ display: 'flex', justifyContent: 'space-between' }}><strong>{debt.label}</strong><span>₹{(debt.total - (debt.paid || 0)).toLocaleString('en-IN')} left</span></div>
+          <div className="progress-container" style={{ height: '6px', background: '#f1f5f9', borderRadius: '3px', margin: '10px 0' }}>
+            <div style={{ width: `${((debt.paid || 0) / debt.total) * 100}%`, height: '100%', background: '#8b5cf6', borderRadius: '3px' }}></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+)}
       </main>
 
       <nav className="bottom-nav">

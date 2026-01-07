@@ -4,7 +4,8 @@ import {
   subscribeToBalance, subscribeToDebts, updateBalance, updateDebtPayment, addDebt, deleteDebt,
   subscribeToStrategy, updateStrategy,
   addTask, updateTask, deleteTask,
-  generateAIPlan 
+  generateAIPlan,
+  getAiUsage // Ensure this is exported from your journalService.js
 } from './journalService';
 import { 
   PenLine, BookOpen, CheckCircle2, Wallet, Trash2, Plus, Search, 
@@ -37,6 +38,7 @@ function App() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiUsage, setAiUsage] = useState({ daily: 0, limit: 50 }); // AI Tracker State
   const [balance, setBalance] = useState({ total: 0 });
   const [debts, setDebts] = useState([]);
   const [strategy, setStrategy] = useState({ 
@@ -52,6 +54,16 @@ function App() {
   const [modalConfig, setModalConfig] = useState({ show: false, type: '', data: null });
   const [modalInput, setModalInput] = useState({ val1: '', val2: '', val3: '' });
 
+  // Function to refresh AI usage stats
+  const refreshAiUsage = async () => {
+    try {
+      const stats = await getAiUsage();
+      if (stats) setAiUsage(stats);
+    } catch (err) {
+      console.error("Usage fetch failed:", err);
+    }
+  };
+
   useEffect(() => {
     setLoading(true);
     const unsubEntries = subscribeToEntries((data) => { setEntries(data); setLoading(false); });
@@ -59,6 +71,8 @@ function App() {
     const unsubBalance = subscribeToBalance((data) => setBalance(data));
     const unsubDebts = subscribeToDebts((data) => setDebts(data));
     const unsubStrategy = subscribeToStrategy((data) => setStrategy(data));
+    
+    refreshAiUsage(); // Initial usage check
 
     return () => {
       unsubEntries(); unsubTasks(); unsubBalance(); unsubDebts(); unsubStrategy();
@@ -122,6 +136,13 @@ function App() {
 
   const handleGenerateAiPlan = async () => {
     if (isAiLoading) return;
+
+    // Daily Limit Guard
+    if (aiUsage.daily >= aiUsage.limit) {
+      alert(`Daily AI limit reached (${aiUsage.daily}/${aiUsage.limit}). Reset happens at 00:00 UTC.`);
+      return;
+    }
+
     setIsAiLoading(true);
     try {
       const contextData = {
@@ -134,6 +155,7 @@ function App() {
         for (const taskLabel of aiTasks) {
           await addTask({ label: taskLabel, completed: false, category: 'ai-generated' });
         }
+        await refreshAiUsage(); // Update counter after success
       }
     } catch (error) {
       console.error("AI Generation failed:", error);
@@ -270,7 +292,12 @@ function App() {
         {activeTab === 'todo' && (
           <section className="screen fade-in">
             <div className="section-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 className="section-title">Daily Discipline</h3>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <h3 className="section-title" style={{ marginBottom: 0 }}>Daily Discipline</h3>
+                <span style={{ fontSize: '0.65rem', color: aiUsage.daily >= aiUsage.limit ? '#ef4444' : '#64748b', fontWeight: '800' }}>
+                   AI: {aiUsage.daily}/{aiUsage.limit} REQ TODAY
+                </span>
+              </div>
               <button onClick={handleGenerateAiPlan} disabled={isAiLoading} className="ai-plan-btn" style={{ background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '14px', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '700', fontSize: '0.85rem', boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)', cursor: isAiLoading ? 'wait' : 'pointer' }}>
                 {isAiLoading ? <RefreshCw className="spin" size={16} /> : <Sparkles size={16} />}
                 {isAiLoading ? "Planning..." : "AI Plan"}
@@ -288,7 +315,10 @@ function App() {
                   <div className={`check-circle ${task.completed ? 'checked' : ''}`} style={{ width: '24px', height: '24px', borderRadius: '50%', border: task.completed ? 'none' : '2px solid #cbd5e1', background: task.completed ? '#10b981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {task.completed && <CheckCheck size={14} color="white" />}
                   </div>
-                  <span style={{ flex: 1, textDecoration: task.completed ? 'line-through' : 'none' }}>{task.label}</span>
+                  <span style={{ flex: 1, textDecoration: task.completed ? 'line-through' : 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {task.category === 'ai-generated' && <Sparkles size={14} color="#8b5cf6" />}
+                    {task.label}
+                  </span>
                   <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} style={{ background: 'none', border: 'none', color: '#fca5a5' }}><Trash2 size={18} /></button>
                 </div>
               ))}

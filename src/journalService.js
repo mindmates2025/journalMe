@@ -164,3 +164,31 @@ export const generateAIPlan = async (contextData) => {
     ];
   }
 };
+
+
+// --- AI USAGE TRACKER ---
+export const getAiUsage = async () => {
+  const apiKey = import.meta.env.VITE_OPENROUTER_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/key", {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+      }
+    });
+
+    if (!response.ok) throw new Error("Failed to fetch usage data");
+    
+    const { data } = await response.json();
+    return {
+      daily: data.usage_daily || 0,
+      isFreeTier: data.is_free_tier, // true if < $10 credits purchased
+      limit: data.is_free_tier ? 50 : 1000 // OpenRouter's official daily limits
+    };
+  } catch (error) {
+    console.error("Usage Tracking Error:", error);
+    return null;
+  }
+};

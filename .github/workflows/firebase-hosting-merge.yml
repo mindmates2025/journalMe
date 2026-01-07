@@ -11,7 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: npm ci && npm run build
+      - name: Install and Build
+        run: npm ci && npm run build
+        env:
+          # This maps your GitHub Secret to a variable Vite can see
+          VITE_OPENROUTER_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

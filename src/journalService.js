@@ -179,14 +179,17 @@ export const getAiUsage = async () => {
       }
     });
 
-    if (!response.ok) throw new Error("Failed to fetch usage data");
+    const json = await response.json();
     
-    const { data } = await response.json();
-    return {
-      daily: data.usage_daily || 0,
-      isFreeTier: data.is_free_tier, // true if < $10 credits purchased
-      limit: data.is_free_tier ? 50 : 1000 // OpenRouter's official daily limits
-    };
+    // OpenRouter returns { data: { usage_daily: X, limit: Y, ... } }
+    if (json && json.data) {
+      return {
+        daily: json.data.usage_daily || 0,
+        // The limit is 50 for free users with < $10 credits
+        limit: json.data.is_free_tier ? 50 : 1000 
+      };
+    }
+    return null;
   } catch (error) {
     console.error("Usage Tracking Error:", error);
     return null;

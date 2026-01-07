@@ -167,6 +167,7 @@ export const generateAIPlan = async (contextData) => {
 
 
 // --- AI USAGE TRACKER ---
+// --- AI USAGE TRACKER ---
 export const getAiUsage = async () => {
   const apiKey = import.meta.env.VITE_OPENROUTER_KEY;
   if (!apiKey) return null;
@@ -181,11 +182,12 @@ export const getAiUsage = async () => {
 
     const json = await response.json();
     
-    // OpenRouter returns { data: { usage_daily: X, limit: Y, ... } }
+    // OpenRouter returns: { data: { usage: 550.2, limit: null, is_free_tier: true ... } }
+    // Note: usage is usually in credits ($), so we look for usage or usage_daily
     if (json && json.data) {
       return {
-        daily: json.data.usage_daily || 0,
-        // The limit is 50 for free users with < $10 credits
+        // Fallback to 0 if neither property exists
+        daily: json.data.usage || json.data.usage_daily || 0,
         limit: json.data.is_free_tier ? 50 : 1000 
       };
     }

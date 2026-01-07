@@ -1,6 +1,6 @@
 import { db } from "../firebase-config";
 import { 
-  collection, doc, setDoc, updateDoc, addDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp 
+  collection, doc, setDoc, updateDoc, addDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, getDoc 
 } from "firebase/firestore";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
@@ -150,6 +150,9 @@ export const generateAIPlan = async (contextData) => {
 
     if (!Array.isArray(taskArray)) throw new Error("Response is not an array");
     
+    // Track usage locally
+    await incrementAiUsage();
+
     return taskArray;
 
   } catch (error) {
@@ -168,32 +171,37 @@ export const generateAIPlan = async (contextData) => {
 
 // --- AI USAGE TRACKER ---
 // --- AI USAGE TRACKER ---
+export const incrementAiUsage = async () => {
+  const today = new Date().toISOString().split('T')[0];
+  // Unique doc per day ensures auto-reset
+  const docRef = doc(db, "meta", `ai_usage_${today}`); 
+  
+  try {
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      await updateDoc(docRef, { count: (docSnap.data().count || 0) + 1 });
+    } else {
+      await setDoc(docRef, { count: 1, date: today });
+    }
+  } catch (error) {
+    console.warn("Usage tracking failed:", error);
+  }
+};
+
 export const getAiUsage = async () => {
-  const apiKey = import.meta.env.VITE_OPENROUTER_KEY;
-  if (!apiKey) return null;
+  const today = new Date().toISOString().split('T')[0];
+  const docRef = doc(db, "meta", `ai_usage_${today}`);
 
   try {
-    const response = await fetch("https://openrouter.ai/api/v1/key", {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-      }
-    });
-
-    const json = await response.json();
+    const docSnap = await getDoc(docRef);
+    const count = docSnap.exists() ? (docSnap.data().count || 0) : 0;
     
-    // OpenRouter returns: { data: { usage: 550.2, limit: null, is_free_tier: true ... } }
-    // Note: usage is usually in credits ($), so we look for usage or usage_daily
-    if (json && json.data) {
-      return {
-        // Fallback to 0 if neither property exists
-        daily: json.data.usage || json.data.usage_daily || 0,
-        limit: json.data.is_free_tier ? 50 : 1000 
-      };
-    }
-    return null;
+    return {
+      daily: count,
+      limit: 50 
+    };
   } catch (error) {
-    console.error("Usage Tracking Error:", error);
-    return null;
+    console.error("Usage fetch error:", error);
+    return { daily: 0, limit: 50 };
   }
 };

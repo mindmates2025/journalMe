@@ -5,13 +5,16 @@ import {
   subscribeToStrategy, updateStrategy,
   addTask, updateTask, deleteTask,
   generateAIPlan,
-  getAiUsage 
+  getAiUsage,
+  exportData, importData // Added for Backup
 } from './journalService';
 import { 
   PenLine, BookOpen, CheckCircle2, Wallet, Trash2, Plus, Search, 
   CheckCheck, Target, X, TrendingUp, ReceiptText, Clock, RotateCcw, 
-  Sparkles, RefreshCw, Edit2, Check 
+  Sparkles, RefreshCw, Edit2, Check,
+  Download, Upload // Added icons
 } from 'lucide-react';
+import InstallPwa from './InstallPwa'; // <--- NEW IMPORT
 import './App.css';
 
 // --- HELPER FUNCTIONS ---
@@ -271,6 +274,9 @@ function App() {
   // --- RENDER ---
   return (
     <div className="app-container">
+      
+      <InstallPwa /> {/* --- ADDED HERE: Custom Install Banner --- */}
+
       {modalConfig.show && (
         <div className="modal-overlay">
           <div className="modal-content fade-in">
@@ -328,6 +334,36 @@ function App() {
               <h3 className="section-title">History</h3>
               <span className="pill">{filteredEntries.length} Entries</span>
             </div>
+
+            {/* --- BACKUP CONTROLS --- */}
+            <div className="backup-controls" style={{display: 'flex', gap: '10px', marginBottom: '16px'}}>
+              <button 
+                onClick={exportData}
+                style={{flex:1, padding:'10px', background:'#e2e8f0', border:'none', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px', fontWeight:'600', fontSize:'0.8rem', color:'#334155', cursor: 'pointer'}}
+              >
+                <Download size={16}/> Backup
+              </button>
+              
+              <label style={{flex:1, padding:'10px', background:'#e2e8f0', border:'none', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px', fontWeight:'600', fontSize:'0.8rem', color:'#334155', cursor:'pointer'}}>
+                <Upload size={16}/> Restore
+                <input 
+                  type="file" 
+                  accept=".json" 
+                  style={{display:'none'}} 
+                  onChange={async (e) => {
+                    if(e.target.files[0]) {
+                      if(window.confirm("This will OVERWRITE all current data. Continue?")) {
+                        await importData(e.target.files[0]);
+                        alert("Data restored successfully!");
+                        window.location.reload();
+                      }
+                    }
+                  }}
+                />
+              </label>
+            </div>
+            {/* --------------------------- */}
+
             <div className="filter-group" style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
               <div className="search-box" style={{ flex: 2, position: 'relative' }}>
                 <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', zIndex: 1 }} />

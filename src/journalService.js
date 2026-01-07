@@ -189,3 +189,65 @@ export const getAiUsage = async () => {
     return { daily: 0, limit: 50 };
   }
 };
+
+
+// --- BACKUP & RESTORE ---
+
+export const performBackup = async () => {
+  try {
+    const allData = {
+      entries: await db.entries.toArray(),
+      tasks: await db.tasks.toArray(),
+      debts: await db.debts.toArray(),
+      balance: await db.balance.toArray(),
+      strategy: await db.strategy.toArray(),
+      usage: await db.usage.toArray(),
+      backupDate: new Date().toISOString()
+    };
+
+    const blob = new Blob([JSON.stringify(allData)], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    const dateStr = new Date().toISOString().split('T')[0];
+    a.download = `JournalMe_AutoBackup_${dateStr}.json`;
+    a.click();
+    
+    // Mark today as backed up
+    localStorage.setItem('lastAutoBackup', dateStr);
+    return true;
+  } catch (err) {
+    console.error("Backup failed", err);
+    return false;
+  }
+};
+
+// Wrapper for manual button click
+export const exportData = () => {
+  performBackup();
+};
+
+export const importData = async (file) => {
+  const reader = new FileReader();
+  return new Promise((resolve, reject) => {
+    reader.onload = async (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        await db.transaction('rw', db.entries, db.tasks, db.debts, db.balance, db.strategy, db.usage, async () => {
+          await db.entries.clear(); await db.tasks.clear(); await db.debts.clear();
+          await db.balance.clear(); await db.strategy.clear(); await db.usage.clear();
+          
+          if(data.entries) await db.entries.bulkAdd(data.entries);
+          if(data.tasks) await db.tasks.bulkAdd(data.tasks);
+          if(data.debts) await db.debts.bulkAdd(data.debts);
+          if(data.balance) await db.balance.bulkAdd(data.balance);
+          if(data.strategy) await db.strategy.bulkAdd(data.strategy);
+          if(data.usage) await db.usage.bulkAdd(data.usage);
+        });
+        resolve(true);
+      } catch (err) { reject(err); }
+    };
+    reader.readAsText(file);
+  });
+};

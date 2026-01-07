@@ -151,11 +151,11 @@ export const generateAIPlan = async (contextData) => {
     console.error("AI Plan Error:", error);
     // Reliable fallback tasks so the app never crashes
     return [
-      "Review GATE Control Systems (1 hr)",
-      "Adhere strictly to survival budget: ₹" + Math.floor(contextData.survivalBudget),
-      "Log all daily spends in the Bank tab",
-      "Read one chapter of a Stoic text",
-      "15 minutes of cardio for physical discipline"
+      "Review your daily survival budget in the Bank tab", // Directs them to your specific app feature
+      "Practice Premeditatio Malorum: What could go wrong today?", // Stoic theme
+      "Identify the one task you are avoiding and do it first", // General Productivity
+      "Log your current mental state in the Journal", // App feature
+      "Take a 10-minute walk to clear your mind" // Wellness
     ];
   }
 };

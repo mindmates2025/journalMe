@@ -29,24 +29,24 @@ export const deleteEntry = async (id) => {
 };
 
 // --- Tasks (Todo List) ---
-export const subscribeToTasks = (callback) => {
-  const q = query(collection(db, "tasks"), orderBy("createdAt", "desc"));
-  return onSnapshot(q, (snapshot) => {
-    const tasks = snapshot.docs.map(doc => ({ 
-      id: doc.id, 
-      ...doc.data() 
-    }));
-    callback(tasks);
-  });
-};
+// export const subscribeToTasks = (callback) => {
+//   const q = query(collection(db, "tasks"), orderBy("createdAt", "desc"));
+//   return onSnapshot(q, (snapshot) => {
+//     const tasks = snapshot.docs.map(doc => ({ 
+//       id: doc.id, 
+//       ...doc.data() 
+//     }));
+//     callback(tasks);
+//   });
+// };
 
-export const addTask = async (text) => {
-  await addDoc(collection(db, "tasks"), {
-    text,
-    completed: false,
-    createdAt: serverTimestamp(),
-  });
-};
+// export const addTask = async (text) => {
+//   await addDoc(collection(db, "tasks"), {
+//     text,
+//     completed: false,
+//     createdAt: serverTimestamp(),
+//   });
+// };
 
 // --- FINANCE CRUD OPERATIONS ---
 
@@ -111,4 +111,36 @@ export const updateStrategy = async (newData) => {
   const docRef = doc(db, "finance", "strategy");
   // setDoc with merge: true creates the document if it's missing
   await setDoc(docRef, newData, { merge: true });
+};
+
+
+// // --- Tasks (Todo List) ---
+export const subscribeToTasks = (callback) => {
+  const q = query(collection(db, "tasks"), orderBy("createdAt", "desc"));
+  return onSnapshot(q, (snapshot) => {
+    const tasks = snapshot.docs.map(doc => ({ 
+      id: doc.id, 
+      ...doc.data() 
+    }));
+    callback(tasks);
+  });
+};
+
+// Fixed: Now accepts the object sent by App.jsx
+export const addTask = async (taskObject) => {
+  await addDoc(collection(db, "tasks"), {
+    ...taskObject,
+    createdAt: serverTimestamp(),
+  });
+};
+
+// Added: Missing update function
+export const updateTask = async (id, updates) => {
+  const taskRef = doc(db, "tasks", id);
+  await updateDoc(taskRef, updates);
+};
+
+// Added: Missing delete function
+export const deleteTask = async (id) => {
+  await deleteDoc(doc(db, "tasks", id));
 };

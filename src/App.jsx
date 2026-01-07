@@ -55,21 +55,14 @@ function App() {
   const [modalInput, setModalInput] = useState({ val1: '', val2: '', val3: '' });
 
   // Function to refresh AI usage stats
-  <div 
-  onClick={refreshAiUsage} // Tap to sync manually
-  style={{ 
-    fontSize: '0.65rem', 
-    color: aiUsage.daily >= aiUsage.limit ? '#ef4444' : '#64748b', 
-    fontWeight: '800',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px'
-  }}
->
-   <RotateCcw size={10} className={isAiLoading ? "spin" : ""} />
-   AI: {Math.floor(aiUsage.daily)}/{aiUsage.limit} REQ TODAY
-</div>
+  const refreshAiUsage = async () => {
+    try {
+      const stats = await getAiUsage();
+      if (stats) setAiUsage(stats);
+    } catch (err) {
+      console.error("Usage fetch failed:", err);
+    }
+  };
 
   useEffect(() => {
     setLoading(true);

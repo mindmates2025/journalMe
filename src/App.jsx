@@ -3,9 +3,14 @@ import {
   addEntry, deleteEntry, subscribeToEntries, subscribeToTasks,
   subscribeToBalance, subscribeToDebts, updateBalance, updateDebtPayment, addDebt, deleteDebt,
   subscribeToStrategy, updateStrategy,
-  addTask, updateTask, deleteTask 
+  addTask, updateTask, deleteTask,
+  generateAIPlan 
 } from './journalService';
-import { PenLine, BookOpen, CheckCircle2, Wallet, Trash2, Plus, Search, CheckCheck, Target, X, TrendingUp, ReceiptText, Clock, RotateCcw } from 'lucide-react';
+import { 
+  PenLine, BookOpen, CheckCircle2, Wallet, Trash2, Plus, Search, 
+  CheckCheck, Target, X, TrendingUp, ReceiptText, Clock, RotateCcw, 
+  Sparkles, RefreshCw 
+} from 'lucide-react';
 import './App.css';
 
 const formatEntryDate = (date) => {
@@ -31,6 +36,7 @@ function App() {
   const [entries, setEntries] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isAiLoading, setIsAiLoading] = useState(false);
   const [balance, setBalance] = useState({ total: 0 });
   const [debts, setDebts] = useState([]);
   const [strategy, setStrategy] = useState({ 
@@ -55,21 +61,15 @@ function App() {
     const unsubStrategy = subscribeToStrategy((data) => setStrategy(data));
 
     return () => {
-      unsubEntries();
-      unsubTasks();
-      unsubBalance();
-      unsubDebts();
-      unsubStrategy();
+      unsubEntries(); unsubTasks(); unsubBalance(); unsubDebts(); unsubStrategy();
     };
   }, []);
 
-  // --- 1. FIXED COMMITMENTS ---
   const MONTHLY_REPAYMENT_TOTAL = 10813; 
   const REPAYMENT_DAY = 13;
   const RENT_AMOUNT = 10000; 
   const RENT_DAY = 11;
 
-  // --- 2. LIQUIDITY MATH ENGINE ---
   const now = new Date();
   const getDaysUntil = (targetDay) => {
     const today = now.getDate();
@@ -86,21 +86,16 @@ function App() {
 
   const incomeBefore11th = (strategy?.expectedIncome || []).filter(inc => inc.date && new Date(inc.date) <= rentDeadlineDate);
   const incomeBefore13th = (strategy?.expectedIncome || []).filter(inc => inc.date && new Date(inc.date) <= repaymentDeadlineDate);
-
   const totalSafePipeline = incomeBefore13th.reduce((acc, inc) => acc + inc.amount, 0);
 
   const surplus11th = balance.total + incomeBefore11th.reduce((acc, inc) => acc + inc.amount, 0) - RENT_AMOUNT;
   const surplus13th = balance.total + totalSafePipeline - RENT_AMOUNT - MONTHLY_REPAYMENT_TOTAL;
-
   const isLiquidityShort = surplus11th < 0 || surplus13th < 0;
   
   const dailySurvivalBudget = !isLiquidityShort ? (surplus13th / daysTo13th) : 0;
   const remainingSurvivalToday = Math.max(0, dailySurvivalBudget - (strategy?.dailySpent || 0));
-
   const totalDebtBalance = debts.reduce((acc, d) => acc + (d.total - (d.paid || 0)), 0);
   const netPosition = balance.total - totalDebtBalance;
-
-  // --- 3. HANDLERS ---
 
   const handleSaveEntry = async () => {
     if (!input.trim()) return;
@@ -120,6 +115,38 @@ function App() {
 
   const handleDeleteTask = async (id) => {
     if (window.confirm("Delete this discipline?")) await deleteTask(id); 
+  };
+
+  const handleGenerateAiPlan = async () => {
+    if (isAiLoading) return;
+    setIsAiLoading(true);
+    try {
+      const contextData = {
+        netPosition: netPosition,
+        survivalBudget: remainingSurvivalToday,
+        recentEntries: entries.slice(0, 3).map(e => e.content),
+      };
+
+      const aiTasks = await generateAIPlan(contextData);
+
+      // SAFETY: Ensure aiTasks is a valid array before iterating
+      if (aiTasks && Array.isArray(aiTasks)) {
+        for (const taskLabel of aiTasks) {
+          await addTask({
+            label: taskLabel,
+            completed: false,
+            category: 'ai-generated'
+          });
+        }
+      } else {
+        console.error("AI Response was not a valid list:", aiTasks);
+      }
+    } catch (error) {
+      console.error("AI Generation failed:", error);
+      alert("AI was unable to generate a plan. Check your service console.");
+    } finally {
+      setIsAiLoading(false);
+    }
   };
 
   const handleDeleteSpendItem = async (itemId, amount) => {
@@ -158,7 +185,6 @@ function App() {
         expectedIncome: [...(strategy.expectedIncome || []), { label: val1, amount: Number(val2), date: val3, id: Date.now() }] 
       });
     }
-    
     setModalConfig({ show: false, type: '', data: null });
   };
 
@@ -224,23 +250,27 @@ function App() {
 
         {activeTab === 'todo' && (
           <section className="screen fade-in">
-            <div className="section-header-row">
+            <div className="section-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 className="section-title">Daily Discipline</h3>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <span className="pill">{tasks.length} Total</span>
-                <span className="pill" style={{ background: '#dcfce7', color: '#166534' }}>{tasks.filter(t => t.completed).length} Done</span>
-              </div>
+              <button 
+                onClick={handleGenerateAiPlan} 
+                disabled={isAiLoading}
+                className="ai-plan-btn"
+                style={{
+                  background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+                  color: 'white', border: 'none', padding: '10px 18px', borderRadius: '14px',
+                  display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '700', fontSize: '0.85rem',
+                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)', cursor: isAiLoading ? 'wait' : 'pointer'
+                }}
+              >
+                {isAiLoading ? <RefreshCw className="spin" size={16} /> : <Sparkles size={16} />}
+                {isAiLoading ? "Planning..." : "AI Plan"}
+              </button>
             </div>
             <div className="card task-input-card" style={{ marginBottom: '24px', padding: '12px' }}>
               <div style={{ flex: 1, position: 'relative' }}>
                 <Target size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                <input 
-                  type="text" 
-                  placeholder="Set a new intention..." 
-                  className="search-input" 
-                  style={{ paddingLeft: '40px', width: '100%' }} 
-                  onKeyDown={(e) => { if (e.key === 'Enter') { handleAddTask(e.target.value); e.target.value = ''; } }} 
-                />
+                <input type="text" placeholder="Set a new intention..." className="search-input" style={{ paddingLeft: '40px', width: '100%' }} onKeyDown={(e) => { if (e.key === 'Enter') { handleAddTask(e.target.value); e.target.value = ''; } }} />
               </div>
             </div>
             <div className="task-list">
@@ -249,7 +279,11 @@ function App() {
                   <div className={`check-circle ${task.completed ? 'checked' : ''}`} style={{ width: '24px', height: '24px', borderRadius: '50%', border: task.completed ? 'none' : '2px solid #cbd5e1', background: task.completed ? '#10b981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {task.completed && <CheckCheck size={14} color="white" />}
                   </div>
-                  <span style={{ flex: 1, textDecoration: task.completed ? 'line-through' : 'none' }}>{task.label}</span>
+                  {/* Added a small Sparkle icon for AI-generated tasks to help distinguish them */}
+                  <span style={{ flex: 1, textDecoration: task.completed ? 'line-through' : 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {task.category === 'ai-generated' && <Sparkles size={14} color="#8b5cf6" />}
+                    {task.label}
+                  </span>
                   <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} style={{ background: 'none', border: 'none', color: '#fca5a5' }}><Trash2 size={18} /></button>
                 </div>
               ))}
@@ -267,7 +301,6 @@ function App() {
               </div>
               <div className="hero-accent-circle"></div>
             </div>
-
             <h3 className="section-title">Daily Strategy</h3>
             <div className="card strategy-card">
               <div className="jail-grid" style={{display:'flex', justifyContent:'space-between', background:'#f8fafc', padding:'12px', borderRadius:'12px', marginBottom:'20px', border:'1px solid #e2e8f0'}}>
@@ -281,15 +314,11 @@ function App() {
                   <p className="strat-value text-danger" style={{fontWeight:'800'}}>₹{Math.ceil(MONTHLY_REPAYMENT_TOTAL / daysTo13th).toLocaleString('en-IN')}</p>
                 </div>
               </div>
-
               <div className="survival-hero" style={{textAlign:'center', marginBottom:'24px'}}>
                 <span className="pill-label">Survival Limit Today</span>
-                <h1 style={{fontSize:'2.5rem', fontWeight:'900', color: !isLiquidityShort ? '#10b981' : '#ef4444'}}>
-                    ₹{Math.floor(remainingSurvivalToday).toLocaleString('en-IN')}
-                </h1>
+                <h1 style={{fontSize:'2.5rem', fontWeight:'900', color: !isLiquidityShort ? '#10b981' : '#ef4444'}}>₹{Math.floor(remainingSurvivalToday).toLocaleString('en-IN')}</h1>
                 {isLiquidityShort && <small className="text-danger">⚠️ Cash Shortage</small>}
               </div>
-
               <div className="income-pipeline-section">
                 <div className="pipeline-header"><span className="pill-label">Income Pipeline (Before 13th)</span><strong className="text-success">+₹{totalSafePipeline.toLocaleString('en-IN')}</strong></div>
                 <div className="pipeline-list">
@@ -302,7 +331,6 @@ function App() {
                 </div>
                 <button className="log-action-btn income-btn" onClick={() => openModal('addIncome')}><TrendingUp size={14} /> Expected Payment</button>
               </div>
-
               <div className="spend-sub-section" style={{marginTop:'12px', background:'#f8fafc', padding:'12px', borderRadius:'12px'}}>
                 <div className="spend-meta" style={{display:'flex', justifyContent:'space-between', marginBottom:'10px'}}>
                    <span>Floor: <strong>₹{Math.floor(dailySurvivalBudget)}</strong></span>
@@ -317,7 +345,6 @@ function App() {
                 <button className="log-action-btn" onClick={() => openModal('logSpend')} style={{marginTop:'10px', width: '100%'}}><Plus size={14} /> Log Spend</button>
               </div>
             </div>
-
             <div className="section-header-row" style={{marginTop:'24px', display:'flex', justifyContent:'space-between'}}>
                 <h3>Active Debts</h3>
                 <button onClick={() => openModal('newDebt')} className="add-debt-btn"><Plus size={16}/> Add New</button>

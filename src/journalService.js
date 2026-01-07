@@ -1,120 +1,113 @@
-import { db } from "../firebase-config";
-import { 
-  collection, doc, setDoc, updateDoc, addDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, getDoc 
-} from "firebase/firestore";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+// src/journalService.js
+import { db } from './db';
+import { liveQuery } from 'dexie';
 
 // --- 1. JOURNAL ENTRIES ---
 export const subscribeToEntries = (callback) => {
-  const q = query(collection(db, "entries"), orderBy("createdAt", "desc"));
-  return onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
-    const entries = snapshot.docs.map(doc => ({ 
-      id: doc.id, 
-      ...doc.data(),
-      metadata: doc.metadata 
-    }));
-    callback(entries);
-  });
+  // Observes the local DB. Updates UI automatically when data changes.
+  const observable = liveQuery(() => db.entries.orderBy('createdAt').reverse().toArray());
+  const subscription = observable.subscribe(callback);
+  return () => subscription.unsubscribe();
 };
 
 export const addEntry = async (content) => {
-  await addDoc(collection(db, "entries"), {
+  await db.entries.add({
     content,
-    createdAt: serverTimestamp(),
+    createdAt: new Date(), // Standard JS Date instead of Firebase Timestamp
+    date: new Date().toISOString()
   });
 };
 
 export const deleteEntry = async (id) => {
-  await deleteDoc(doc(db, "entries", id));
+  await db.entries.delete(id);
 };
 
 // --- 2. TASKS (TODO LIST) ---
 export const subscribeToTasks = (callback) => {
-  const q = query(collection(db, "tasks"), orderBy("createdAt", "desc"));
-  return onSnapshot(q, (snapshot) => {
-    const tasks = snapshot.docs.map(doc => ({ 
-      id: doc.id, 
-      ...doc.data() 
-    }));
-    callback(tasks);
-  });
+  const observable = liveQuery(() => db.tasks.orderBy('createdAt').reverse().toArray());
+  const subscription = observable.subscribe(callback);
+  return () => subscription.unsubscribe();
 };
 
 export const addTask = async (taskObject) => {
-  await addDoc(collection(db, "tasks"), {
+  await db.tasks.add({
     ...taskObject,
-    createdAt: serverTimestamp(),
+    createdAt: new Date(),
   });
 };
 
 export const updateTask = async (id, updates) => {
-  const taskRef = doc(db, "tasks", id);
-  await updateDoc(taskRef, updates);
+  await db.tasks.update(id, updates);
 };
 
 export const deleteTask = async (id) => {
-  await deleteDoc(doc(db, "tasks", id));
+  await db.tasks.delete(id);
 };
 
 // --- 3. FINANCE OPERATIONS ---
+
+// Balance is a single row with id='main'
 export const subscribeToBalance = (callback) => {
-  return onSnapshot(doc(db, "finance", "balance"), (doc) => {
-    if (doc.exists()) {
-      callback(doc.data());
-    } else {
-      callback({ total: 0 }); 
-    }
+  const observable = liveQuery(async () => {
+    const doc = await db.balance.get('main');
+    return doc || { total: 0 };
   });
+  const subscription = observable.subscribe(callback);
+  return () => subscription.unsubscribe();
 };
 
 export const subscribeToDebts = (callback) => {
-  const q = query(collection(db, "finance_debts"), orderBy("label", "asc"));
-  return onSnapshot(q, (snapshot) => {
-    const debts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    callback(debts);
-  });
+  const observable = liveQuery(() => db.debts.toArray());
+  const subscription = observable.subscribe(callback);
+  return () => subscription.unsubscribe();
 };
 
 export const addDebt = async (debtData) => {
-  await addDoc(collection(db, "finance_debts"), debtData);
+  await db.debts.add(debtData);
 };
 
 export const updateBalance = async (newTotal) => {
-  const docRef = doc(db, "finance", "balance");
-  await setDoc(docRef, { total: newTotal }, { merge: true });
+  // 'put' acts like upsert (insert or update)
+  await db.balance.put({ id: 'main', total: newTotal });
 };
 
 export const updateDebtPayment = async (debtId, newPaidAmount) => {
-  const debtRef = doc(db, "finance_debts", debtId);
-  await updateDoc(debtRef, { paid: newPaidAmount });
+  await db.debts.update(debtId, { paid: newPaidAmount });
 };
 
 export const deleteDebt = async (debtId) => {
-  await deleteDoc(doc(db, "finance_debts", debtId));
+  await db.debts.delete(debtId);
 };
 
+// Strategy is a single row with id='main'
 export const subscribeToStrategy = (callback) => {
-  const docRef = doc(db, "finance", "strategy");
-  return onSnapshot(docRef, (doc) => {
-    if (doc.exists()) {
-      callback(doc.data());
-    } else {
-      callback({ dailySpent: 0, upcomingPayments: [], expectedIncome: [], dailySpendsList: [] });
-    }
+  const observable = liveQuery(async () => {
+    const doc = await db.strategy.get('main');
+    return doc || { dailySpent: 0, upcomingPayments: [], expectedIncome: [], dailySpendsList: [] };
   });
+  const subscription = observable.subscribe(callback);
+  return () => subscription.unsubscribe();
 };
 
 export const updateStrategy = async (newData) => {
-  const docRef = doc(db, "finance", "strategy");
-  await setDoc(docRef, newData, { merge: true });
+  const current = await db.strategy.get('main') || {};
+  // Simulate Firebase { merge: true }
+  await db.strategy.put({ ...current, ...newData, id: 'main' });
 };
 
-// --- 4. AI PLANNING ---
+// --- 4. AI PLANNING (LOCAL FIRST) ---
 export const generateAIPlan = async (contextData) => {
   const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_KEY;
   const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
   try {
+    // 1. Check Usage Limit Locally First
+    const usage = await getAiUsage();
+    if (usage.daily >= usage.limit) {
+      throw new Error("Daily AI Limit Reached");
+    }
+
+    // 2. Call API
     const response = await fetch(ENDPOINT, {
       method: "POST",
       headers: {
@@ -142,7 +135,6 @@ export const generateAIPlan = async (contextData) => {
     const content = data.choices[0]?.message?.content || "";
 
     // --- SMART EXTRACTION logic ---
-    // This finds the part of the text between [ and ] to ignore thinking/prose
     const arrayMatch = content.match(/\[.*\]/s);
     if (!arrayMatch) throw new Error("No JSON array found in response");
 
@@ -150,7 +142,7 @@ export const generateAIPlan = async (contextData) => {
 
     if (!Array.isArray(taskArray)) throw new Error("Response is not an array");
     
-    // Track usage locally
+    // 3. Track usage locally
     await incrementAiUsage();
 
     return taskArray;
@@ -160,7 +152,7 @@ export const generateAIPlan = async (contextData) => {
     // Reliable fallback tasks so the app never crashes
     return [
       "Review GATE Control Systems (1 hr)",
-      "Adhere strictly to survival budget: ₹" + contextData.survivalBudget,
+      "Adhere strictly to survival budget: ₹" + Math.floor(contextData.survivalBudget),
       "Log all daily spends in the Bank tab",
       "Read one chapter of a Stoic text",
       "15 minutes of cardio for physical discipline"
@@ -169,35 +161,27 @@ export const generateAIPlan = async (contextData) => {
 };
 
 
-// --- AI USAGE TRACKER ---
-// --- AI USAGE TRACKER ---
+// --- AI USAGE TRACKER (LOCAL) ---
 export const incrementAiUsage = async () => {
   const today = new Date().toISOString().split('T')[0];
-  // Unique doc per day ensures auto-reset
-  const docRef = doc(db, "meta", `ai_usage_${today}`); 
   
-  try {
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      await updateDoc(docRef, { count: (docSnap.data().count || 0) + 1 });
+  // Use Dexie transaction to be safe
+  await db.transaction('rw', db.usage, async () => {
+    const entry = await db.usage.get(today);
+    if (entry) {
+      await db.usage.update(today, { count: entry.count + 1 });
     } else {
-      await setDoc(docRef, { count: 1, date: today });
+      await db.usage.add({ date: today, count: 1 });
     }
-  } catch (error) {
-    console.warn("Usage tracking failed:", error);
-  }
+  });
 };
 
 export const getAiUsage = async () => {
   const today = new Date().toISOString().split('T')[0];
-  const docRef = doc(db, "meta", `ai_usage_${today}`);
-
   try {
-    const docSnap = await getDoc(docRef);
-    const count = docSnap.exists() ? (docSnap.data().count || 0) : 0;
-    
+    const entry = await db.usage.get(today);
     return {
-      daily: count,
+      daily: entry ? entry.count : 0,
       limit: 50 
     };
   } catch (error) {

@@ -251,3 +251,31 @@ export const importData = async (file) => {
     reader.readAsText(file);
   });
 };
+
+
+// --- GOALS (VISION) ---
+
+export const subscribeToGoals = (callback) => {
+  // Sort by created date, newest first
+  const observable = liveQuery(() => db.goals.orderBy('createdAt').reverse().toArray());
+  const subscription = observable.subscribe(callback);
+  return () => subscription.unsubscribe();
+};
+
+export const addGoal = async (label, horizon) => {
+  // horizon must be: 'weekly', 'monthly', or 'yearly'
+  await db.goals.add({
+    label,
+    horizon, 
+    completed: false,
+    createdAt: new Date()
+  });
+};
+
+export const toggleGoal = async (id, currentStatus) => {
+  await db.goals.update(id, { completed: !currentStatus });
+};
+
+export const deleteGoal = async (id) => {
+  await db.goals.delete(id);
+};

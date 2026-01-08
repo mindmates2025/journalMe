@@ -6,13 +6,14 @@ import {
   addTask, updateTask, deleteTask,
   generateAIPlan,
   getAiUsage,
-  exportData, importData // Added for Backup
+  exportData, importData,
+  subscribeToGoals, addGoal, toggleGoal, deleteGoal
 } from './journalService';
 import { 
   PenLine, BookOpen, CheckCircle2, Wallet, Trash2, Plus, Search, 
   CheckCheck, Target, X, TrendingUp, ReceiptText, Clock, RotateCcw, 
   Sparkles, RefreshCw, Edit2, Check,
-  Download, Upload // Added icons
+  Download, Upload , Telescope, Calendar, Flag // Added icons
 } from 'lucide-react';
 import InstallPwa from './InstallPwa'; // <--- NEW IMPORT
 import './App.css';
@@ -72,6 +73,8 @@ function App() {
   const [modalConfig, setModalConfig] = useState({ show: false, type: '', data: null });
   const [modalInput, setModalInput] = useState({ val1: '', val2: '', val3: '' });
 
+
+  const [goals, setGoals] = useState([]);
   // --- INITIALIZATION ---
 
   const refreshAiUsage = async () => {
@@ -92,7 +95,7 @@ function App() {
     const unsubBalance = subscribeToBalance ? subscribeToBalance((data) => setBalance(data)) : () => {};
     const unsubDebts = subscribeToDebts ? subscribeToDebts((data) => setDebts(data)) : () => {};
     const unsubStrategy = subscribeToStrategy ? subscribeToStrategy((data) => setStrategy(data)) : () => {};
-    
+    const unsubGoals = subscribeToGoals ? subscribeToGoals(setGoals) : () => {}; // <--- NEW SUB
     refreshAiUsage(); 
 
     return () => {
@@ -101,6 +104,7 @@ function App() {
       if (unsubBalance) unsubBalance();
       if (unsubDebts) unsubDebts();
       if (unsubStrategy) unsubStrategy();
+      if (unsubGoals) unsubGoals();
     };
   }, []);
 
@@ -268,6 +272,13 @@ function App() {
     
     setModalConfig({ show: false, type: '', data: null });
   };
+
+  const handleAddGoal = async (horizon) => {
+  const input = document.getElementById('goalInput');
+  if(!input.value.trim()) return;
+  await addGoal(input.value.trim(), horizon);
+  input.value = '';
+};
 
   const filteredEntries = entries.filter(entry => entry.content.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -537,6 +548,60 @@ function App() {
             </div>
           </section>
         )}
+
+        {activeTab === 'vision' && (
+          <section className="screen fade-in">
+             <div className="section-header-row">
+              <h3 className="section-title">Strategic Vision</h3>
+            </div>
+
+            {/* GOAL INPUT SECTION */}
+            <div className="card" style={{marginBottom: '20px', padding: '16px'}}>
+               <h4 style={{marginTop:0, marginBottom:'12px', fontSize:'0.9rem', color:'#64748b'}}>Set New Target</h4>
+               <div style={{display:'flex', gap:'8px', marginBottom:'10px'}}>
+                 <input 
+                   type="text" 
+                   id="goalInput"
+                   placeholder="Achieve what?" 
+                   className="search-input"
+                   style={{flex:1, paddingLeft:'12px'}} 
+                 />
+               </div>
+               <div style={{display:'flex', gap:'8px'}}>
+                 <button className="goal-tag-btn week" onClick={() => handleAddGoal('weekly')}>+ This Week</button>
+                 <button className="goal-tag-btn month" onClick={() => handleAddGoal('monthly')}>+ This Month</button>
+                 <button className="goal-tag-btn year" onClick={() => handleAddGoal('yearly')}>+ This Year</button>
+               </div>
+            </div>
+
+            {/* WEEKLY GOALS */}
+            <GoalSection 
+              title="Weekly Focus" 
+              icon={<Clock size={18} color="#6366f1"/>} 
+              goals={goals.filter(g => g.horizon === 'weekly')} 
+              onToggle={toggleGoal} 
+              onDelete={deleteGoal}
+            />
+
+            {/* MONTHLY GOALS */}
+            <GoalSection 
+              title="Monthly Targets" 
+              icon={<Calendar size={18} color="#ec4899"/>} 
+              goals={goals.filter(g => g.horizon === 'monthly')} 
+              onToggle={toggleGoal} 
+              onDelete={deleteGoal}
+            />
+
+            {/* YEARLY GOALS */}
+            <GoalSection 
+              title="Yearly Resolutions" 
+              icon={<Flag size={18} color="#eab308"/>} 
+              goals={goals.filter(g => g.horizon === 'yearly')} 
+              onToggle={toggleGoal} 
+              onDelete={deleteGoal}
+            />
+          </section>
+        )}
       </main>
 
       <nav className="bottom-nav">
@@ -544,6 +609,7 @@ function App() {
         <NavBtn icon={<BookOpen />} label="Entries" active={activeTab === 'history'} onClick={() => setActiveTab('history')} />
         <NavBtn icon={<CheckCircle2 />} label="Tasks" active={activeTab === 'todo'} onClick={() => setActiveTab('todo')} />
         <NavBtn icon={<Wallet />} label="Bank" active={activeTab === 'bank'} onClick={() => setActiveTab('bank')} />
+        <NavBtn icon={<Telescope />} label="Vision" active={activeTab === 'vision'} onClick={() => setActiveTab('vision')} />
       </nav>
     </div>
   );
@@ -554,3 +620,32 @@ const NavBtn = ({ icon, label, active, onClick }) => (
 );
 
 export default App;
+
+
+const GoalSection = ({ title, icon, goals, onToggle, onDelete }) => (
+  <div style={{marginBottom: '24px'}}>
+    <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'8px', paddingLeft:'4px'}}>
+      {icon}
+      <h4 style={{margin:0, fontSize:'1rem', fontWeight:'700'}}>{title}</h4>
+      <span className="pill" style={{fontSize:'0.7rem'}}>{goals.filter(g => !g.completed).length} left</span>
+    </div>
+    
+    {goals.length === 0 && <p style={{fontSize:'0.8rem', color:'#94a3b8', fontStyle:'italic', marginLeft:'30px'}}>No targets set yet.</p>}
+
+    <div className="goal-list">
+      {goals.map(g => (
+        <div key={g.id} className={`card goal-card ${g.completed ? 'completed' : ''}`} onClick={() => onToggle(g.id, g.completed)}>
+           <div className={`check-circle ${g.completed ? 'checked' : ''}`}>
+             {g.completed && <Check size={12} color="white"/>}
+           </div>
+           <span style={{flex:1, textDecoration: g.completed ? 'line-through' : 'none', color: g.completed ? '#94a3b8' : '#1e293b'}}>
+             {g.label}
+           </span>
+           <button onClick={(e) => {e.stopPropagation(); onDelete(g.id)}} style={{background:'none', border:'none', color:'#cbd5e1'}}>
+             <X size={16}/>
+           </button>
+        </div>
+      ))}
+    </div>
+  </div>
+);

@@ -5,19 +5,17 @@ export const db = new Dexie('StoicJournalDB');
 
 // CHANGE HERE: We changed .version(1) to .version(2)
 // This forces the browser to upgrade the database structure
-db.version(2).stores({
-  // Added 'createdAt' to the index list
+db.version(3).stores({
   entries: '++id, date, content, createdAt', 
-  
   tasks: '++id, label, completed, category, createdAt',
   
-  // Single row tables (we'll use ID 'main')
+  // NEW: Goals Table
+  // horizon = 'weekly', 'monthly', 'yearly'
+  goals: '++id, label, horizon, completed, createdAt',
+
   balance: 'id, total', 
   strategy: 'id', 
-  
   debts: '++id, label, total, paid',
-  
-  // AI Usage Tracking
   usage: 'date, count' 
 });
 

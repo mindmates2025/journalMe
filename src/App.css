@@ -583,3 +583,30 @@ input::placeholder {
 .action-icon-btn:active {
   transform: scale(0.9);
 }
+
+
+.goal-tag-btn {
+  flex: 1;
+  border: none;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: white;
+  transition: opacity 0.2s;
+}
+.goal-tag-btn:active { opacity: 0.7; }
+.goal-tag-btn.week { background-color: #6366f1; }   /* Indigo */
+.goal-tag-btn.month { background-color: #ec4899; }  /* Pink */
+.goal-tag-btn.year { background-color: #eab308; }   /* Yellow */
+
+.goal-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  margin-bottom: 8px;
+  border-left: 3px solid transparent;
+}
+.goal-card.completed { opacity: 0.6; }

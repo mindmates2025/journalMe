@@ -7,13 +7,15 @@ import {
   generateAIPlan,
   getAiUsage,
   exportData, importData,
-  subscribeToGoals, addGoal, toggleGoal, deleteGoal
+  subscribeToGoals, addGoal, toggleGoal, deleteGoal,
+  subscribeToScore, processDailyReset,
+  subscribeToRecurring, addRecurring, deleteRecurring
 } from './journalService';
 import { 
   PenLine, BookOpen, CheckCircle2, Wallet, Trash2, Plus, Search, 
   CheckCheck, Target, X, TrendingUp, ReceiptText, Clock, RotateCcw, 
   Sparkles, RefreshCw, Edit2, Check,
-  Download, Upload , Telescope, Calendar, Flag // Added icons
+  Download, Upload , Telescope, Calendar, Flag, Trophy , Settings
 } from 'lucide-react';
 import InstallPwa from './InstallPwa'; // <--- NEW IMPORT
 import './App.css';
@@ -75,6 +77,11 @@ function App() {
 
 
   const [goals, setGoals] = useState([]);
+
+  const [score, setScore] = useState(100);
+
+  const [recurring, setRecurring] = useState([]);
+
   // --- INITIALIZATION ---
 
   const refreshAiUsage = async () => {
@@ -96,7 +103,14 @@ function App() {
     const unsubDebts = subscribeToDebts ? subscribeToDebts((data) => setDebts(data)) : () => {};
     const unsubStrategy = subscribeToStrategy ? subscribeToStrategy((data) => setStrategy(data)) : () => {};
     const unsubGoals = subscribeToGoals ? subscribeToGoals(setGoals) : () => {}; // <--- NEW SUB
+    const unsubScore = subscribeToScore(setScore);
+    const unsubRecurring = subscribeToRecurring(setRecurring);
+    
     refreshAiUsage(); 
+
+    processDailyReset().then((wasReset) => {
+      if(wasReset) alert("New Day Started. Tasks cleared. Points deducted for incomplete tasks.");
+    });
 
     return () => {
       if (unsubEntries) unsubEntries();
@@ -105,49 +119,59 @@ function App() {
       if (unsubDebts) unsubDebts();
       if (unsubStrategy) unsubStrategy();
       if (unsubGoals) unsubGoals();
+      unsubScore();
+      unsubRecurring();
     };
   }, []);
 
-  // --- FINANCIAL CALCULATIONS (FIXED LOGIC) ---
-
-  const MONTHLY_REPAYMENT_TOTAL = 10813; 
-  const REPAYMENT_DAY = 13;
-  const RENT_AMOUNT = 10000; 
-  const RENT_DAY = 11;
-
+  // --- DYNAMIC FINANCIAL CALCULATIONS ---
   const now = new Date();
   
+  // Helper to calculate days until a specific day of the month
   const getDaysUntil = (targetDay) => {
     const today = now.getDate();
     if (today <= targetDay) return targetDay - today + 1;
     const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     return (lastDayOfMonth - today) + targetDay + 1;
   };
+
+  // --- FINANCIAL CALCULATIONS (Place BEFORE return) ---
   
-  const daysTo11th = getDaysUntil(RENT_DAY);
-  const daysTo13th = getDaysUntil(REPAYMENT_DAY);
+  // 1. Recurring Bills (Jails)
+  const jailItems = recurring.map(item => {
+    const daysLeft = getDaysUntil(item.dayOfMonth);
+    const dailyCost = Math.ceil(item.amount / daysLeft);
+    return { ...item, daysLeft, dailyCost };
+  });
 
-  const rentDeadlineDate = new Date(now.getFullYear(), now.getMonth(), RENT_DAY);
-  const repaymentDeadlineDate = new Date(now.getFullYear(), now.getMonth(), REPAYMENT_DAY);
+  const sortedBills = [...jailItems].sort((a, b) => a.daysLeft - b.daysLeft);
+  const nextBill = sortedBills[0]; // Needed for Header
 
-  // Split Logic for Income
+  // 2. Debt & Net Position
+  const totalDebtBalance = debts.reduce((acc, d) => acc + (d.total - (d.paid || 0)), 0);
+  const netPosition = balance.total - totalDebtBalance; // <--- DEFINED HERE
+
+  // 3. Survival Budget Calculation
+  // Calculate total monthly liability dynamically
+  const totalMonthlyLiability = recurring.reduce((acc, item) => acc + item.amount, 0);
+  
+  // Liquidity Check: Do we have enough for the NEXT bill?
+  const surplusForNextBill = nextBill ? (balance.total - nextBill.amount) : balance.total;
+  const isLiquidityShort = surplusForNextBill < 0;
+
+  // Simple Daily Budget: (Balance - Next Bill) / Days to Next Bill
+  // If no bills, just divide balance by 30
+  const dailySurvivalBudget = nextBill 
+    ? (Math.max(0, balance.total - nextBill.amount) / nextBill.daysLeft) 
+    : (balance.total / 30);
+
+  const remainingSurvivalToday = Math.max(0, dailySurvivalBudget - (strategy?.dailySpent || 0));
+
+  // 4. Income Pipelines
+  const repaymentDeadlineDate = new Date(now.getFullYear(), now.getMonth(), 13); // Defaulting to 13th for pipeline split
   const incomeBefore13th = (strategy?.expectedIncome || []).filter(inc => inc.date && new Date(inc.date) <= repaymentDeadlineDate);
   const incomeAfter13th = (strategy?.expectedIncome || []).filter(inc => inc.date && new Date(inc.date) > repaymentDeadlineDate);
-  
   const totalSafePipeline = incomeBefore13th.reduce((acc, inc) => acc + Number(inc.amount), 0);
-
-  // Liquidity Checks
-  const surplus11th = balance.total + (strategy?.expectedIncome || []).filter(inc => inc.date && new Date(inc.date) <= rentDeadlineDate).reduce((acc, inc) => acc + Number(inc.amount), 0) - RENT_AMOUNT;
-  const surplus13th = balance.total + totalSafePipeline - RENT_AMOUNT - MONTHLY_REPAYMENT_TOTAL;
-  
-  const isLiquidityShort = surplus11th < 0 || surplus13th < 0;
-  
-  const dailySurvivalBudget = !isLiquidityShort ? (surplus13th / daysTo13th) : 0;
-  const remainingSurvivalToday = Math.max(0, dailySurvivalBudget - (strategy?.dailySpent || 0));
-  
-  const totalDebtBalance = debts.reduce((acc, d) => acc + (d.total - (d.paid || 0)), 0);
-  const netPosition = balance.total - totalDebtBalance;
-
   // --- HANDLERS ---
 
   const handleSaveEntry = async () => {
@@ -269,6 +293,9 @@ function App() {
       );
       await updateStrategy({ expectedIncome: newList });
     }
+    if (type === 'addRecurring' && val1 && val2 && val3) {
+      await addRecurring(val1, val2, val3); // Label, Amount, Day
+    }
     
     setModalConfig({ show: false, type: '', data: null });
   };
@@ -281,7 +308,8 @@ function App() {
 };
 
   const filteredEntries = entries.filter(entry => entry.content.toLowerCase().includes(searchTerm.toLowerCase()));
-
+  // --- Calculation Logic (Place this before return) ---
+  
   // --- RENDER ---
   return (
     <div className="app-container">
@@ -312,6 +340,16 @@ function App() {
                     <input type="date" value={modalInput.val3} onChange={(e) => setModalInput({...modalInput, val3: e.target.value})} />
                 </div>
               }
+              {modalConfig.type === 'addRecurring' && (
+                <>
+                   <input type="text" placeholder="Bill Name (e.g. Rent)" autoFocus value={modalInput.val1} onChange={(e) => setModalInput({...modalInput, val1: e.target.value})} />
+                   <input type="number" placeholder="Amount (₹)" value={modalInput.val2} onChange={(e) => setModalInput({...modalInput, val2: e.target.value})} style={{marginTop: '12px'}} />
+                   <div style={{marginTop: '12px'}}>
+                     <label className="pill-label">Due Day (1-31):</label>
+                     <input type="number" min="1" max="31" value={modalInput.val3} onChange={(e) => setModalInput({...modalInput, val3: e.target.value})} />
+                   </div>
+                </>
+              )}
             </div>
             <button className="primary-btn" onClick={handleModalSubmit} style={{marginTop: '20px'}}>Confirm</button>
           </div>
@@ -319,8 +357,30 @@ function App() {
       )}
 
       <header className="main-header">
-        <h1>Journal<span>Me</span></h1>
-        <div className="date-pill">Rent in {daysTo11th}d</div>
+        <div>
+           <h1 style={{margin:0, fontSize:'1.5rem'}}>Journal<span>Me</span></h1>
+           
+           {/* DYNAMIC BILL PILL */}
+           <div className="date-pill">
+             {nextBill ? (
+               <>{nextBill.label} in {nextBill.daysLeft}d</>
+             ) : (
+               <>No Upcoming Bills</>
+             )}
+           </div>
+        </div>
+
+        {/* SCORE DISPLAY */}
+        <div className="score-pill" style={{
+            background: score < 50 ? '#fee2e2' : '#dcfce7', 
+            color: score < 50 ? '#ef4444' : '#166534',
+            padding: '8px 12px', borderRadius: '20px', 
+            fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
+        }}>
+           <Trophy size={16} />
+           {score}
+        </div>
       </header>
 
       <main>
@@ -416,7 +476,7 @@ function App() {
               </div>
             </div>
             <div className="task-list">
-              {[...tasks].sort((a, b) => a.completed - b.completed).map(task => (
+              {[...tasks].filter(t => !t.isArchived).sort((a, b) => a.completed - b.completed).map(task => (
                 <div key={task.id} className={`card task-card ${task.completed ? 'completed' : ''}`} onClick={() => handleToggleTask(task)} style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '16px', marginBottom: '12px', borderLeft: task.completed ? '4px solid #e2e8f0' : '4px solid #8b5cf6', opacity: task.completed ? 0.7 : 1 }}>
                   <div className={`check-circle ${task.completed ? 'checked' : ''}`} style={{ width: '24px', height: '24px', borderRadius: '50%', border: task.completed ? 'none' : '2px solid #cbd5e1', background: task.completed ? '#10b981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {task.completed && <CheckCheck size={14} color="white" />}
@@ -443,18 +503,44 @@ function App() {
               <div className="hero-accent-circle"></div>
             </div>
 
-            <h3 className="section-title">Liquidity Jails</h3>
-            <div className="card strategy-card" style={{ marginBottom: '16px' }}>
-              <div className="jail-grid" style={{ display: 'flex', justifyContent: 'space-between', background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <div className="jail-item" style={{ textAlign: 'center', flex: 1 }}>
-                  <span className="strat-label" style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '700' }}>Rent Jail (11th)</span>
-                  <p className="strat-value text-primary" style={{ fontWeight: '800', margin: '4px 0 0' }}>₹{Math.ceil(RENT_AMOUNT / daysTo11th).toLocaleString('en-IN')}/d</p>
-                </div>
-                <div style={{ width: '1px', background: '#e2e8f0' }}></div>
-                <div className="jail-item" style={{ textAlign: 'center', flex: 1 }}>
-                  <span className="strat-label" style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '700' }}>Installment (13th)</span>
-                  <p className="strat-value text-danger" style={{ fontWeight: '800', margin: '4px 0 0' }}>₹{Math.ceil(MONTHLY_REPAYMENT_TOTAL / daysTo13th).toLocaleString('en-IN')}/d</p>
-                </div>
+            <div className="section-header-row" style={{marginTop:'24px', justifyContent:'space-between'}}>
+               <h3 className="section-title">Liquidity Jails</h3>
+               <button onClick={() => openModal('addRecurring')} style={{background:'none', border:'none', color:'#64748b'}}>
+                 <Settings size={18} />
+               </button>
+            </div>
+
+            <div className="card strategy-card" style={{ marginBottom: '16px', padding:'0' }}>
+              <div className="jail-grid" style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: `repeat(${recurring.length > 0 ? recurring.length : 1}, 1fr)`, 
+                  background: '#f8fafc', 
+                  borderRadius: '12px',
+                  border: '1px solid #e2e8f0',
+                  overflow: 'hidden'
+              }}>
+                {recurring.length === 0 ? (
+                  <p style={{padding:'12px', textAlign:'center', fontSize:'0.8rem', color:'#94a3b8'}}>No recurring bills set.</p>
+                ) : (
+                  jailItems.map((item, index) => (
+                    <div key={item.id} style={{ 
+                        textAlign: 'center', 
+                        padding:'12px', 
+                        borderRight: index < jailItems.length -1 ? '1px solid #e2e8f0' : 'none' 
+                    }}>
+                      <div style={{display:'flex', justifyContent:'center', alignItems:'center', gap:'4px'}}>
+                         <span className="strat-label" style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '700' }}>
+                           {item.label} ({item.daysLeft}d)
+                         </span>
+                         {/* Optional delete button for cleanup */}
+                         <button onClick={() => { if(confirm('Delete bill?')) deleteRecurring(item.id) }} style={{border:'none', background:'none', padding:0, color:'#cbd5e1', cursor:'pointer'}}><X size={10}/></button>
+                      </div>
+                      <p className={`strat-value ${item.dailyCost > 2000 ? 'text-danger' : 'text-primary'}`} style={{ fontWeight: '800', margin: '4px 0 0' }}>
+                        ₹{item.dailyCost.toLocaleString('en-IN')}/d
+                      </p>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 

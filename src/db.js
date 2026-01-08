@@ -3,20 +3,22 @@ import Dexie from 'dexie';
 
 export const db = new Dexie('StoicJournalDB');
 
-// CHANGE HERE: We changed .version(1) to .version(2)
-// This forces the browser to upgrade the database structure
-db.version(3).stores({
-  entries: '++id, date, content, createdAt', 
-  tasks: '++id, label, completed, category, createdAt',
-  
-  // NEW: Goals Table
-  // horizon = 'weekly', 'monthly', 'yearly'
-  goals: '++id, label, horizon, completed, createdAt',
 
+// BUMP TO VERSION 5
+db.version(5).stores({
+  entries: '++id, date, content, createdAt', 
+  tasks: '++id, label, completed, category, createdAt, isArchived',
+  goals: '++id, label, horizon, completed, createdAt',
+  gamification: 'id, points',
+  
+  // Existing single-row tables
   balance: 'id, total', 
   strategy: 'id', 
   debts: '++id, label, total, paid',
-  usage: 'date, count' 
+  usage: 'date, count',
+
+  // NEW: Recurring Expenses (Jails)
+  recurring: '++id, label, amount, dayOfMonth' 
 });
 
 // Seed initial data if empty
@@ -29,4 +31,9 @@ db.on('populate', () => {
     expectedIncome: [], 
     upcomingPayments: [] 
   });
+  db.gamification.add({ id: 'main', points: 100 });
+  db.recurring.bulkAdd([
+    { label: "Rent", amount: 10000, dayOfMonth: 11 },
+    { label: "EMI", amount: 10813, dayOfMonth: 13 }
+  ]);
 });

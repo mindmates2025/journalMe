@@ -36,11 +36,22 @@ export const addTask = async (taskObject) => {
   });
 };
 
+// MODIFY existing 'updateTask'
 export const updateTask = async (id, updates) => {
+  // Check if we are completing it for the first time
+  if (updates.completed === true) {
+    await updateScore(5); // +5 for finishing
+  }
+  // Check if un-completing (oops moment)
+  if (updates.completed === false) {
+    await updateScore(-5); // Revert points
+  }
   await db.tasks.update(id, updates);
 };
 
 export const deleteTask = async (id) => {
+  // -2 for deleting (Giving up)
+  await updateScore(-2);
   await db.tasks.delete(id);
 };
 
@@ -278,4 +289,81 @@ export const toggleGoal = async (id, currentStatus) => {
 
 export const deleteGoal = async (id) => {
   await db.goals.delete(id);
+};
+
+
+// --- GAMIFICATION HELPERS ---
+
+export const subscribeToScore = (callback) => {
+  const observable = liveQuery(async () => {
+    const g = await db.gamification.get('main');
+    return g ? g.points : 100;
+  });
+  const subscription = observable.subscribe(callback);
+  return () => subscription.unsubscribe();
+};
+
+const updateScore = async (amount) => {
+  await db.transaction('rw', db.gamification, async () => {
+    const g = await db.gamification.get('main');
+    const current = g ? g.points : 100;
+    await db.gamification.put({ id: 'main', points: current + amount });
+  });
+};
+
+
+// --- THE MIDNIGHT JUDGE (Day Reset) ---
+
+export const processDailyReset = async () => {
+  const today = new Date().toISOString().split('T')[0];
+  const lastRun = localStorage.getItem('lastDailyReset');
+
+  // Only run if we haven't run it today yet
+  if (lastRun !== today) {
+    console.log("Running Daily Reset logic...");
+    
+    await db.transaction('rw', db.tasks, db.gamification, async () => {
+      // 1. Find active tasks (not archived)
+      const activeTasks = await db.tasks.filter(t => !t.isArchived).toArray();
+      
+      let penalty = 0;
+      
+      for (const task of activeTasks) {
+        if (!task.completed) {
+          penalty += 5; // -5 per failure
+        }
+        // Archive ALL tasks from yesterday (Clear the board)
+        await db.tasks.update(task.id, { isArchived: true });
+      }
+
+      // 2. Apply Penalty
+      if (penalty > 0) {
+        const g = await db.gamification.get('main');
+        const current = g ? g.points : 100;
+        await db.gamification.put({ id: 'main', points: current - penalty });
+        // Optional: Log a journal entry about the failure?
+      }
+    });
+
+    localStorage.setItem('lastDailyReset', today);
+    return true; // Return true to tell UI to show a summary toast
+  }
+  return false;
+};
+
+
+// --- RECURRING EXPENSES (JAILS) ---
+
+export const subscribeToRecurring = (callback) => {
+  const observable = liveQuery(() => db.recurring.orderBy('dayOfMonth').toArray());
+  const subscription = observable.subscribe(callback);
+  return () => subscription.unsubscribe();
+};
+
+export const addRecurring = async (label, amount, dayOfMonth) => {
+  await db.recurring.add({ label, amount: Number(amount), dayOfMonth: Number(dayOfMonth) });
+};
+
+export const deleteRecurring = async (id) => {
+  await db.recurring.delete(id);
 };

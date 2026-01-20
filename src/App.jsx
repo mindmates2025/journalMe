@@ -82,6 +82,8 @@ function App() {
 
   const [recurring, setRecurring] = useState([]);
 
+  const [taskInput, setTaskInput] = useState("");
+
   // --- INITIALIZATION ---
 
   const refreshAiUsage = async () => {
@@ -92,6 +94,9 @@ function App() {
       console.error("Usage fetch failed:", err);
     }
   };
+
+
+
 
   useEffect(() => {
     setLoading(true);
@@ -307,6 +312,13 @@ function App() {
   input.value = '';
 };
 
+
+const handleManualTaskSubmit = async () => {
+    if (!taskInput.trim()) return;
+    await handleAddTask(taskInput);
+    setTaskInput(""); // Clear the box
+  };
+
   const filteredEntries = entries.filter(entry => entry.content.toLowerCase().includes(searchTerm.toLowerCase()));
   // --- Calculation Logic (Place this before return) ---
   
@@ -469,11 +481,35 @@ function App() {
                 {isAiLoading ? "Planning..." : "AI Plan"}
               </button>
             </div>
-            <div className="card task-input-card" style={{ marginBottom: '24px', padding: '12px' }}>
+            <div className="card task-input-card" style={{ marginBottom: '24px', padding: '12px', display: 'flex', gap: '10px', alignItems: 'center' }}>
               <div style={{ flex: 1, position: 'relative' }}>
                 <Target size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                <input type="text" placeholder="Set a new intention..." className="search-input" style={{ paddingLeft: '40px', width: '100%' }} onKeyDown={(e) => { if (e.key === 'Enter') { handleAddTask(e.target.value); e.target.value = ''; } }} />
+                <input 
+                  type="text" 
+                  placeholder="Set a new intention..." 
+                  className="search-input" 
+                  style={{ paddingLeft: '40px', width: '100%' }} 
+                  value={taskInput} // <--- Controlled value
+                  onChange={(e) => setTaskInput(e.target.value)} // <--- Update state
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleManualTaskSubmit(); }} 
+                />
               </div>
+              <button 
+                onClick={handleManualTaskSubmit}
+                className="primary-btn"
+                style={{
+                  width: '44px', 
+                  height: '44px', 
+                  padding: 0, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  borderRadius: '12px',
+                  flexShrink: 0
+                }}
+              >
+                <Plus size={24} />
+              </button>
             </div>
             <div className="task-list">
               {[...tasks].filter(t => !t.isArchived).sort((a, b) => a.completed - b.completed).map(task => (

@@ -640,7 +640,34 @@ function App() {
              <div className="section-header-row">
               <h3 className="section-title">Strategic Vision</h3>
             </div>
-
+            
+            {/* --- NEW: PROGRESS DASHBOARD --- */}
+            <div className="card" style={{marginBottom: '20px', padding: '16px'}}>
+              <h4 style={{marginTop:0, marginBottom:'16px', fontSize:'0.9rem', color:'#64748b', display:'flex', alignItems:'center', gap:'8px'}}>
+                 <TrendingUp size={16}/> Goal Velocity
+              </h4>
+              
+              <ProgressBar 
+                label="Weekly Sprints" 
+                total={goals.filter(g => g.horizon === 'weekly').length} 
+                completed={goals.filter(g => g.horizon === 'weekly' && g.completed).length}
+                color="#6366f1" // Indigo
+              />
+              
+              <ProgressBar 
+                label="Monthly Milestones" 
+                total={goals.filter(g => g.horizon === 'monthly').length} 
+                completed={goals.filter(g => g.horizon === 'monthly' && g.completed).length}
+                color="#ec4899" // Pink
+              />
+              
+              <ProgressBar 
+                label="Yearly Resolution" 
+                total={goals.filter(g => g.horizon === 'yearly').length} 
+                completed={goals.filter(g => g.horizon === 'yearly' && g.completed).length}
+                color="#eab308" // Yellow
+              />
+            </div>
             {/* GOAL INPUT SECTION */}
             <div className="card" style={{marginBottom: '20px', padding: '16px'}}>
                <h4 style={{marginTop:0, marginBottom:'12px', fontSize:'0.9rem', color:'#64748b'}}>Set New Target</h4>
@@ -735,3 +762,26 @@ const GoalSection = ({ title, icon, goals, onToggle, onDelete }) => (
     </div>
   </div>
 );
+
+
+const ProgressBar = ({ label, total, completed, color }) => {
+  const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+  
+  return (
+    <div style={{marginBottom: '12px'}}>
+      <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.75rem', fontWeight:'600', marginBottom:'4px', color:'#475569'}}>
+        <span>{label}</span>
+        <span>{percentage}% ({completed}/{total})</span>
+      </div>
+      <div style={{width:'100%', height:'8px', background:'#e2e8f0', borderRadius:'4px', overflow:'hidden'}}>
+        <div style={{
+           width: `${percentage}%`, 
+           height:'100%', 
+           background: color, 
+           borderRadius:'4px',
+           transition: 'width 0.5s ease-in-out'
+        }}></div>
+      </div>
+    </div>
+  );
+};

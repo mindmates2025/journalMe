@@ -50,9 +50,19 @@ export const updateTask = async (id, updates) => {
 };
 
 export const deleteTask = async (id) => {
+  // 1. Get the task first to check its status
+  const task = await db.tasks.get(id);
   // -2 for deleting (Giving up)
-  await updateScore(-2);
-  await db.tasks.delete(id);
+  if (task) {
+    // Only penalize if the task was NOT completed (i.e., giving up)
+    if (!task.completed) {
+      await updateScore(-2); 
+    }
+    // If task.completed is true, we do NOTHING to the score. 
+    // You keep your +5 reward because you earned it.
+    
+    await db.tasks.delete(id);
+  }
 };
 
 // --- 3. FINANCE OPERATIONS ---
